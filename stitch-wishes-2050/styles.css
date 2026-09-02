@@ -1,0 +1,1032 @@
+/* ==========================================================================
+   Stitch Wishess — "Holo-Craft"
+   Pastel futurism. Palette sampled directly from the studio's own artwork.
+   ========================================================================== */
+
+:root {
+  /* Surface */
+  --paper: #f2fafc;
+  --paper-warm: #fdf4ea;
+  --paper-raised: rgba(255, 255, 255, 0.72);
+
+  /* Ink */
+  --ink: #0d2a31;
+  --ink-soft: #4a6e75;
+  --ink-faint: #8aa5aa;
+
+  /* Aurora — sampled from sky-texture.png */
+  --aurora: #8fd4e6;
+  --periwinkle: #9cc2e6;
+  --mint: #aee2d2;
+
+  /* Medallion — sampled from stitch-witch-portrait.png */
+  --lilac: #e4cce4;
+  --blossom: #f0c0e4;
+  --peach: #fcd8cc;
+
+  --line: rgba(13, 42, 49, 0.14);
+  --line-soft: rgba(13, 42, 49, 0.07);
+
+  --holo: linear-gradient(
+    100deg,
+    var(--aurora) 0%,
+    var(--periwinkle) 22%,
+    var(--lilac) 44%,
+    var(--blossom) 62%,
+    var(--peach) 78%,
+    var(--mint) 100%
+  );
+
+  /* Same iridescence, pitched dark enough to read as type */
+  --holo-ink: linear-gradient(
+    100deg,
+    #2f9cba 0%,
+    #5b86c9 28%,
+    #9a6dc4 52%,
+    #c25fa0 74%,
+    #3f9e83 100%
+  );
+
+  --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  --rail: 5.5rem;
+  --content-max: 78rem;
+  --radius: 20px;
+
+  --s1: 0.5rem;
+  --s2: 1rem;
+  --s3: 1.75rem;
+  --s4: 3rem;
+  --s5: 5.5rem;
+  --s6: 9rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* The studio's own painted sky, fixed behind everything.
+   The veil on top keeps body copy readable over the saturated bands. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -8%;
+  z-index: -4;
+  /* A palette tint over the photo. `cover` crops differently at every window
+     shape, and the image's centre is its palest region — without this the
+     background washes out on tall or narrow viewports. */
+  background:
+    linear-gradient(
+      160deg,
+      rgba(143, 212, 230, 0.42) 0%,
+      rgba(156, 194, 230, 0.3) 28%,
+      rgba(174, 226, 210, 0.26) 52%,
+      rgba(240, 192, 228, 0.3) 76%,
+      rgba(252, 216, 204, 0.34) 100%
+    ),
+    url("assets/sky-texture.png") center / cover no-repeat;
+  filter: saturate(1.14);
+  animation: drift 46s ease-in-out infinite alternate;
+}
+
+/* Drifting cloud layers, cut from the same painted sky.
+   Each layer is 200% wide and travels exactly a whole number of tiles,
+   so the loop never shows a seam. */
+.clouds {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Puffs are gradients, not the photo: the sky texture has no tileable edge,
+   so tiling it leaves a seam. Every blob fades out well inside its own tile,
+   which makes the repeat invisible. */
+.cloud-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background-repeat: repeat-x;
+  will-change: transform;
+}
+
+.cloud-layer--far {
+  background-image:
+    radial-gradient(22% 30% at 24% 28%, rgba(255, 255, 255, 0.95), transparent 72%),
+    radial-gradient(19% 25% at 56% 52%, rgba(255, 255, 255, 0.85), transparent 74%),
+    radial-gradient(16% 21% at 81% 24%, rgba(240, 250, 253, 0.88), transparent 74%);
+  background-size: 50% 100%;
+  opacity: 1;
+  animation: cloud-drift 190s linear infinite;
+}
+
+.cloud-layer--near {
+  background-image:
+    radial-gradient(18% 23% at 20% 70%, rgba(255, 255, 255, 0.82), transparent 74%),
+    radial-gradient(15% 19% at 52% 84%, rgba(255, 248, 242, 0.72), transparent 76%),
+    radial-gradient(13% 17% at 78% 62%, rgba(255, 255, 255, 0.68), transparent 76%);
+  background-size: 25% 100%;
+  opacity: 0.9;
+  animation: cloud-drift 105s linear infinite;
+}
+
+@keyframes cloud-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+/* Fine grain so the pastels read as material, not flat gradient */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+@keyframes drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-2.5%, 2%, 0) scale(1.06); }
+  100% { transform: translate3d(2%, -1.5%, 0) scale(1.03); }
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Type
+   -------------------------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  margin: 0 0 var(--s2);
+}
+
+h1 { font-size: clamp(2.6rem, 5.2vw + 0.6rem, 5.4rem); }
+h2 { font-size: clamp(2rem, 3.4vw + 0.6rem, 3.4rem); }
+
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0 0 var(--s2);
+  color: var(--ink-soft);
+}
+
+/* Mono is the utility voice: labels, prices, specs, coordinates */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 var(--s2);
+}
+
+.holo-text {
+  background: var(--holo-ink);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: holo-shift 14s ease-in-out infinite alternate;
+}
+
+@keyframes holo-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* --------------------------------------------------------------------------
+   Layout
+   -------------------------------------------------------------------------- */
+
+.wrap {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding-inline: var(--s3);
+}
+
+main {
+  padding-left: var(--rail);
+}
+
+.band {
+  padding-block: var(--s6);
+}
+
+.band--tight {
+  padding-block: var(--s5);
+}
+
+/* Section heading: a stitch dash, then the name in mono */
+.band-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s2);
+  border-bottom: 1px dashed var(--line);
+}
+
+.band-head h2 {
+  margin: 0;
+}
+
+.band-head .band-note {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   The thread — signature element.
+   A dashed stitch line that sews itself down the page as you scroll,
+   with beads at each section anchor. This is how the beaded pens are made.
+   -------------------------------------------------------------------------- */
+
+.thread {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--rail);
+  height: 100vh;
+  z-index: -2;
+  pointer-events: none;
+}
+
+.thread__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.thread__track {
+  fill: none;
+  stroke: rgba(13, 42, 49, 0.18);
+  stroke-width: 1.75;
+  stroke-dasharray: 7 7;
+}
+
+.thread__stitch {
+  fill: none;
+  stroke: url(#threadHolo);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 7;
+}
+
+.thread__beads {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bead {
+  position: absolute;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin-left: -6.5px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1.5px solid rgba(13, 42, 49, 0.28);
+  transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1), border-color 0.45s ease, box-shadow 0.45s ease;
+  pointer-events: auto;
+}
+
+/* No printed labels: they sat 22px right of the bead, overflowed the rail and
+   collided with body copy. The section name lives in the bead's title
+   attribute instead, so the rail stays purely a spine. */
+.bead.is-strung {
+  background: var(--holo);
+  border-color: transparent;
+  transform: scale(1.5);
+  box-shadow: 0 0 0 4px rgba(143, 212, 230, 0.22);
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-left: var(--rail);
+  /* The original storefront ran a dark bar over the pastel sky; it is what
+     gave the site its contrast, so it comes back here. */
+  background: rgba(11, 34, 40, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.site-header .brand {
+  color: #f1f3f3;
+}
+
+.site-header .nav a {
+  color: rgba(241, 243, 243, 0.72);
+}
+
+.site-header .nav a:hover,
+.site-header .nav a[aria-current="page"] {
+  color: #ffffff;
+  border-bottom-color: var(--aurora);
+}
+
+.site-header :focus-visible {
+  outline-color: var(--aurora);
+}
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  /* wide enough that an orbiting heart never crosses the wordmark */
+  gap: 1.6rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brand__mark {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--holo);
+  background-size: 200% 100%;
+  animation: holo-shift 14s ease-in-out infinite alternate;
+  flex: none;
+}
+
+/* The two blue hearts the original wordmark wore, set orbiting the mark.
+   The counter-rotation keeps each heart upright as it travels. */
+.brand__mark::before,
+.brand__mark::after {
+  content: "\1F499";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1em;
+  height: 1em;
+  margin: -0.5em 0 0 -0.5em;
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+  animation: heart-orbit 11s linear infinite;
+}
+
+.brand__mark::after {
+  font-size: 8px;
+  animation-delay: -5.5s;
+  opacity: 0.85;
+}
+
+@keyframes heart-orbit {
+  from { transform: rotate(0deg) translateX(22px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(22px) rotate(-360deg); }
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.nav a {
+  color: var(--ink-soft);
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.nav a:hover,
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--aurora);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 1.7rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -14px rgba(13, 42, 49, 0.55);
+}
+
+.btn-ghost {
+  background: var(--paper-raised);
+  color: var(--ink);
+  border-color: var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.btn-ghost:hover {
+  transform: translateY(-2px);
+  border-color: var(--aurora);
+}
+
+/* --------------------------------------------------------------------------
+   Hero — the medallion is the thesis
+   -------------------------------------------------------------------------- */
+
+.hero {
+  padding-block: var(--s6) var(--s5);
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  align-items: center;
+  gap: var(--s4);
+}
+
+.hero__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 var(--s3);
+}
+
+.hero__eyebrow::before {
+  content: "";
+  width: 34px;
+  height: 1px;
+  background: var(--ink-faint);
+  flex: none;
+}
+
+.hero h1 {
+  margin-bottom: var(--s3);
+}
+
+.hero__lede {
+  max-width: 38ch;
+  font-size: 1.08rem;
+  margin-bottom: var(--s3);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+/* Medallion: circular crop of the artwork, ringed and lit */
+.medallion {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  justify-self: center;
+  width: min(100%, 42rem);
+  padding: 10px;
+  background: var(--holo);
+  background-size: 200% 200%;
+  animation: holo-spin 20s linear infinite;
+  box-shadow: 0 30px 70px -30px rgba(13, 42, 49, 0.4);
+}
+
+.medallion__disc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.medallion__disc img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Slow sheen sweep across the disc — iridescent foil */
+.medallion__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    115deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.5) 47%,
+    rgba(255, 255, 255, 0.16) 53%,
+    transparent 66%
+  );
+  background-size: 260% 260%;
+  mix-blend-mode: screen;
+  animation: sheen 9s ease-in-out infinite;
+}
+
+@keyframes holo-spin {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes sheen {
+  0%, 62% { background-position: 120% 0%; }
+  100% { background-position: -40% 100%; }
+}
+
+/* --------------------------------------------------------------------------
+   Product grid — specimen cards
+   -------------------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: var(--s3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 10px 10px 1.1rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(143, 212, 230, 0.7);
+  box-shadow: 0 26px 50px -26px rgba(13, 42, 49, 0.34);
+}
+
+.card__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: calc(var(--radius) - 8px);
+  overflow: hidden;
+  background: linear-gradient(150deg, var(--aurora), var(--lilac));
+  margin-bottom: 0.95rem;
+}
+
+.card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.card:hover .card__media img {
+  transform: scale(1.05);
+}
+
+.card__media--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(13, 42, 49, 0.5);
+  text-align: center;
+  padding: var(--s2);
+}
+
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0 0.45rem;
+  flex: 1;
+}
+
+.card__title {
+  margin: 0;
+  color: var(--ink);
+}
+
+.card__price {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   The maker
+   -------------------------------------------------------------------------- */
+
+.maker {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: var(--s5);
+  align-items: center;
+}
+
+.maker__frame {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background: var(--paper-raised);
+  padding: 10px;
+  box-shadow: 0 24px 50px -30px rgba(13, 42, 49, 0.35);
+}
+
+.maker__frame img {
+  border-radius: calc(var(--radius) - 8px);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  width: 100%;
+}
+
+.maker__quote {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 1.5vw + 0.7rem, 1.7rem);
+  font-weight: 500;
+  line-height: 1.32;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0 0 var(--s3);
+}
+
+.maker__sig {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Materials — the studio's vernacular, as a spec table
+   -------------------------------------------------------------------------- */
+
+.materials {
+  display: grid;
+  /* eight materials, so four columns fill two rows exactly */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px dashed var(--line);
+  border-left: 1px dashed var(--line);
+}
+
+.materials div {
+  padding: 1.25rem 1.1rem;
+  border-bottom: 1px dashed var(--line);
+  border-right: 1px dashed var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.materials div:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   Page heads (collection / about / product)
+   -------------------------------------------------------------------------- */
+
+.page-head {
+  padding-block: var(--s5) var(--s4);
+}
+
+.page-head h1 {
+  margin-bottom: var(--s2);
+}
+
+.page-head p {
+  max-width: 44ch;
+}
+
+/* Product detail */
+.detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s5);
+  align-items: start;
+  padding-block: var(--s4) var(--s5);
+}
+
+.detail__media {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background: var(--paper-raised);
+  padding: 10px;
+}
+
+.detail__media img {
+  border-radius: calc(var(--radius) - 8px);
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+/* Product titles run long; they must not inherit the hero scale */
+.detail h1 {
+  font-size: clamp(1.8rem, 1.9vw + 0.9rem, 2.7rem);
+  line-height: 1.04;
+  margin-bottom: var(--s2);
+}
+
+.detail__price {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  color: var(--ink);
+  margin-bottom: var(--s3);
+}
+
+.detail__desc {
+  border-top: 1px dashed var(--line);
+  padding-top: var(--s3);
+  margin-bottom: var(--s3);
+  max-width: 58ch;
+}
+
+.detail .not-found {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--s6) 0;
+}
+
+/* About */
+.about-body {
+  max-width: 44rem;
+  padding-block: var(--s4) var(--s6);
+}
+
+.about-body p {
+  font-size: 1.05rem;
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+
+.site-footer {
+  padding-left: var(--rail);
+  border-top: 1px dashed var(--line);
+  margin-top: var(--s5);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--s4);
+  padding-block: var(--s4) var(--s3);
+}
+
+.footer-grid h3 {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--s2);
+}
+
+.footer-grid ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-grid li {
+  margin-bottom: 0.45rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.footer-grid a:hover {
+  color: var(--ink);
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--line-soft);
+  padding-block: var(--s2) var(--s4);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   Scroll reveal
+   -------------------------------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1000px) {
+  .hero__grid,
+  .maker {
+    grid-template-columns: 1fr;
+    gap: var(--s4);
+  }
+
+  .medallion {
+    order: -1;
+    width: min(100%, 30rem);
+  }
+
+  .detail {
+    grid-template-columns: 1fr;
+    gap: var(--s4);
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --rail: 0rem;
+    --s5: 3.5rem;
+    --s6: 5rem;
+  }
+
+  .thread {
+    display: none;
+  }
+
+  .band-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .materials {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav {
+    gap: 1rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Phone: drop the wordmark so the nav never runs off the edge */
+@media (max-width: 560px) {
+  .wrap {
+    padding-inline: 1.1rem;
+  }
+
+  .brand__label {
+    display: none;
+  }
+
+  .nav {
+    gap: 0.8rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.07em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  body::before,
+  .holo-text,
+  .brand__mark,
+  .medallion,
+  .medallion__sheen,
+  .cloud-layer,
+  .brand__mark::before,
+  .brand__mark::after {
+    animation: none;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .card,
+  .btn,
+  .card__media img {
+    transition: none;
+  }
+}

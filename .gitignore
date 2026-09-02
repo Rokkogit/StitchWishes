@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# macOS cruft (this catalog was handled on a Mac at one point)
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Windows cruft
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/

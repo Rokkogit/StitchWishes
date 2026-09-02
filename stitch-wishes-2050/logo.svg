@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Stitch Wishess">
+  <defs>
+    <linearGradient id="holo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8fd4e6"/>
+      <stop offset="30%" stop-color="#9cc2e6"/>
+      <stop offset="58%" stop-color="#e4cce4"/>
+      <stop offset="78%" stop-color="#f0c0e4"/>
+      <stop offset="100%" stop-color="#aee2d2"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="60" cy="60" r="58" fill="url(#holo)"/>
+
+  <!-- a single running stitch across the disc -->
+  <path d="M22 74 C 40 46, 80 74, 98 46"
+        fill="none"
+        stroke="#0d2a31"
+        stroke-width="6"
+        stroke-linecap="round"
+        stroke-dasharray="11 11"
+        opacity="0.82"/>
+</svg>
