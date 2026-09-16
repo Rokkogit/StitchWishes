@@ -1,0 +1,7 @@
+# Excluded from the deployment upload entirely.
+#
+# Do NOT add lib/ here — api/ imports it, and Vercel bundles imported modules
+# by tracing them from the files it uploads.
+
+tests
+docs

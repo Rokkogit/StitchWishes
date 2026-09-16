@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "stitch-wishes-2050"
+  "outputDirectory": "stitch-wishes-2050",
+  "cleanUrls": true
 }

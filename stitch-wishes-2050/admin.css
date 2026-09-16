@@ -1,0 +1,225 @@
+/* ==========================================================================
+   Back of house — the /admin gate.
+
+   Extends styles.css rather than restating it: the painted sky, the palette,
+   the type roles and .btn all carry over. What is new here is a single idea —
+   the thread, which on the storefront maps scroll position, is reused to map
+   session state. One bead, and it is your session.
+   ========================================================================== */
+
+:root {
+  /* The palette has no error colour, because the storefront never needed one.
+     A deep rose keeps it inside the family — it is --blossom taken down to a
+     weight that reads as "stop" without importing a foreign red. */
+  --alert: #a8456a;
+}
+
+.admin {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.admin__brand {
+  justify-self: start;
+  padding: var(--s3) var(--s3) 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   The gate
+   -------------------------------------------------------------------------- */
+
+.gate {
+  width: min(30rem, 100% - 2.5rem);
+  margin-inline: auto;
+  padding-block: var(--s4) var(--s5);
+  align-self: center;
+  text-align: center;
+}
+
+/* The composition hangs from the thread, so it is centred — the strand is a
+   spine, and a left rag would leave it floating beside the content instead of
+   holding it. */
+.gate__thread {
+  position: relative;
+  width: 2px;
+  height: 64px;
+  margin: 0 auto var(--s4);
+}
+
+.stitch {
+  display: block;
+  width: 2px;
+  height: 64px;
+  overflow: visible;
+}
+
+.stitch__track {
+  stroke: rgba(13, 42, 49, 0.18);
+  stroke-width: 1.75;
+  stroke-dasharray: 7 7;
+}
+
+/* Sewn top-down by uncovering the stroke, the same trick the storefront's
+   rail uses — the dashes have to survive, so the reveal cannot be a
+   stroke-dashoffset animation. */
+.stitch__sewn {
+  stroke: url(#gateHolo);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 7 7;
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path 0.55s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.gate__thread.is-sewn .stitch__sewn {
+  clip-path: inset(0 0 0 0);
+}
+
+/* .bead and .bead.is-strung come from styles.css; it only needs placing at
+   the end of this strand rather than at a scroll fraction. */
+.gate__thread .bead {
+  top: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Panels
+   -------------------------------------------------------------------------- */
+
+.gate__panel h1 {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  margin: 0 0 var(--s2);
+}
+
+.gate__lede {
+  color: var(--ink-soft);
+  margin: 0 auto var(--s4);
+  max-width: 26rem;
+  text-wrap: pretty;
+}
+
+.gate__waiting {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+/* ----------------------------------------------------------------- form */
+
+.gate__form {
+  display: grid;
+  gap: var(--s1);
+  justify-items: stretch;
+}
+
+.gate__form .label {
+  margin: 0;
+  text-align: center;
+}
+
+/* Mono for the field: the one place where telling l from 1 and O from 0 while
+   typing a passphrase actually matters. */
+.gate__input {
+  width: 100%;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-raised);
+  backdrop-filter: blur(12px);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.gate__input:hover {
+  border-color: var(--aurora);
+}
+
+.gate__input:focus {
+  outline: none;
+  border-color: var(--aurora);
+  box-shadow: 0 0 0 4px rgba(143, 212, 230, 0.22);
+}
+
+/* The global :focus-visible outline is squared off against a 14px field, so
+   the ring above stands in — but only for pointer focus. Keyboard focus keeps
+   the outline the rest of the site uses. */
+.gate__input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.gate__submit {
+  justify-self: center;
+  margin-top: var(--s2);
+}
+
+.gate__submit[disabled] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.gate__error {
+  margin: var(--s1) 0 0;
+  color: var(--alert);
+  font-size: 0.9rem;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------- the panel */
+
+.gate__shell {
+  margin-bottom: var(--s4);
+  padding: var(--s3);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  backdrop-filter: blur(12px);
+}
+
+.gate__shell .label {
+  margin-bottom: var(--s1);
+}
+
+.gate__meta {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------------------------
+   Narrow
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .admin__brand {
+    padding: var(--s2) var(--s2) 0;
+  }
+
+  .admin__brand .brand__label {
+    display: none;
+  }
+
+  .gate {
+    padding-block: var(--s3) var(--s4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stitch__sewn {
+    transition: none;
+  }
+
+  .gate__input {
+    transition: none;
+  }
+}

@@ -4,6 +4,14 @@ node_modules/
 # Logs
 *.log
 
+# Local env files. ADMIN_CODE and ADMIN_SESSION_SECRET live here during local
+# development — this repo is public, so these must never be committed.
+.env
+.env*.local
+
+# Vercel CLI link + pulled project settings
+.vercel
+
 # macOS cruft (this catalog was handled on a Mac at one point)
 .DS_Store
 ._*

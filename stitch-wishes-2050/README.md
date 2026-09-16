@@ -56,6 +56,12 @@ Serve the parent folder and open:
 - `collection.html` — full catalog
 - `product.html?handle=<handle>` — single piece
 - `about.html` — Abi's story
+- `admin.html` — served at `/admin`; passphrase-gated, needs `vercel dev`
+  locally. See the root README for setup.
+
+On `/admin` the thread is reused for a different job. The storefront's rail
+maps scroll position; there it is a single bead that maps session state —
+hollow when signed out, sewn and strung when signed in.
 
 ## Assets
 
