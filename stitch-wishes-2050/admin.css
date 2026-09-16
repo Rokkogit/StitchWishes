@@ -914,3 +914,55 @@
     aspect-ratio: 3 / 4;
   }
 }
+
+/* ------------------------------------------------------------------ tabs */
+
+.app__who {
+  color: var(--ink);
+  letter-spacing: 0.1em;
+}
+
+.app__who em {
+  font-style: normal;
+  color: var(--ink-faint);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding-top: var(--s2);
+}
+
+.tab {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 999px 999px 0 0;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tab:hover { color: var(--ink); }
+
+.tab.is-on {
+  background: var(--paper-raised);
+  border-color: var(--line-soft);
+  border-bottom-color: transparent;
+  color: var(--ink);
+  backdrop-filter: blur(12px);
+}
+
+.app__main { padding-block: var(--s3) var(--s6); }
+
+@media (max-width: 720px) {
+  .app__who { display: none; }
+}
+
+@media (max-width: 560px) {
+  .tabs { padding-inline: var(--s2); }
+  .tab { padding: 0.45rem 0.85rem; font-size: 0.62rem; }
+}

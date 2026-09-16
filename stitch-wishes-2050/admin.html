@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=holo18">
-  <link rel="stylesheet" href="admin.css?v=holo18">
+  <link rel="stylesheet" href="styles.css?v=holo19">
+  <link rel="stylesheet" href="admin.css?v=holo19">
 </head>
 <body class="admin">
   <!-- ──────────────────────────────── the gate ───────────────────────────── -->
@@ -89,14 +89,21 @@
         <span class="brand__label">Stitch Wishess</span>
       </a>
       <nav class="app__nav">
-        <a href="collection.html" target="_blank" rel="noopener">View the shop</a>
+        <span class="app__who">Stitch Wishess <em>(Admin)</em></span>
+        <a href="index.html" target="_blank" rel="noopener">View the shop</a>
         <button class="btn btn-ghost" type="button" data-logout>Sign out</button>
       </nav>
     </header>
 
+    <nav class="tabs wrap" role="tablist" aria-label="What to edit">
+      <button class="tab is-on" type="button" role="tab" aria-selected="true" data-tab="catalog">Catalog</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="homepage">Homepage</button>
+    </nav>
+
     <p class="admin-message" data-message role="status" hidden></p>
 
-    <main class="app__main wrap" data-catalog></main>
+    <main class="app__main wrap" data-catalog role="tabpanel"></main>
+    <main class="app__main wrap" data-homepage role="tabpanel" hidden></main>
 
     <!-- Appears only when there is something to save. -->
     <div class="savebar" data-savebar hidden>
@@ -110,8 +117,8 @@
 
   <!-- products.js is the bundled catalog: the seed for a store that has never
        been written to, and the storefront's fallback. -->
-  <script src="products.js?v=holo18"></script>
-  <script src="admin-catalog.js?v=holo18"></script>
-  <script src="admin.js?v=holo18"></script>
+  <script src="products.js?v=holo19"></script>
+  <script src="admin-catalog.js?v=holo19"></script>
+  <script src="admin.js?v=holo19"></script>
 </body>
 </html>

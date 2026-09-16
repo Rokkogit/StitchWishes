@@ -16,6 +16,7 @@
     digest: null,
     assets: [],
     health: null,
+    tab: 'catalog',    // 'catalog' | 'homepage'
     view: 'grid',      // 'grid' | 'piece'
     editing: null,     // handle being edited
     filter: 'all',
@@ -267,6 +268,40 @@
     } catch (error) {
       renderFailure(state.view === 'piece' ? 'a piece' : 'the catalog', error);
     }
+  }
+
+  function showTab(name) {
+    state.tab = name;
+
+    el.catalogPanel.hidden = name !== 'catalog';
+    el.homepagePanel.hidden = name !== 'homepage';
+
+    for (const button of document.querySelectorAll('[data-tab]')) {
+      const on = button.dataset.tab === name;
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-selected', String(on));
+    }
+
+    if (name === 'homepage') renderHomepage();
+    else render();
+  }
+
+  // Placeholder until the homepage content model is designed. Says what it is
+  // rather than showing an empty panel, which is the failure mode the catalog
+  // already taught us.
+  function renderHomepage() {
+    el.homepagePanel.innerHTML = `
+      <div class="admin-head"><div>
+        <h1>The homepage</h1>
+        <p class="admin-sub">Not wired up yet.</p>
+      </div></div>
+      <div class="gate__shell">
+        <p>The homepage text lives inside <code>index.html</code> rather than in
+           the catalog store, so there is nothing here to edit until it is
+           pulled out into content the same way the pieces were.</p>
+        <p>That is the next thing to build.</p>
+      </div>
+    `;
   }
 
   const showGrid = () => {
@@ -727,6 +762,13 @@
 
   function wire() {
     el.main = $('[data-catalog]');
+    el.catalogPanel = el.main;
+    el.homepagePanel = $('[data-homepage]');
+
+    for (const button of document.querySelectorAll('[data-tab]')) {
+      button.addEventListener('click', () => showTab(button.dataset.tab));
+    }
+
     el.bar = $('[data-savebar]');
     el.barText = $('[data-savebar-text]');
     el.save = $('[data-save]');
