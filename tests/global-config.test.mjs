@@ -344,3 +344,65 @@ test('writeCatalog survives an error body that is not JSON', async () => {
   assert.equal(result.ok, false);
   assert.equal(result.status, 502);
 });
+
+/* ------------------------------- first write into an empty store --------- */
+// Vercel answered the very first real write with 404 "Edge Config Item not
+// found". The documented "upsert" operation behaves as an update here, so a
+// key that has never existed cannot be written that way. The first write has
+// to create; every write after it can update.
+
+test('writeCatalog retries as create when upsert reports the item is missing', async () => {
+  const fetchImpl = stubFetch([
+    { status: 404, body: { error: { code: "not_found", message: "Edge Config Item not found." } } },
+    { status: 200, body: { status: "ok" } },
+  ]);
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.ok, true);
+  assert.equal(fetchImpl.calls.length, 2, "expected one retry");
+  assert.equal(JSON.parse(fetchImpl.calls[0].options.body).items[0].operation, "upsert");
+  assert.equal(JSON.parse(fetchImpl.calls[1].options.body).items[0].operation, "create");
+});
+
+test('the retry carries the same catalog, not an empty one', async () => {
+  const fetchImpl = stubFetch([
+    { status: 404, body: { error: { message: "Edge Config Item not found." } } },
+    { status: 200, body: { status: "ok" } },
+  ]);
+
+  await writeCatalog(env(), products, fetchImpl);
+
+  assert.deepEqual(JSON.parse(fetchImpl.calls[1].options.body).items[0].value, products);
+});
+
+test('a failing retry reports the retry failure, not the original 404', async () => {
+  const fetchImpl = stubFetch([
+    { status: 404, body: { error: { message: "Edge Config Item not found." } } },
+    { status: 403, body: { error: { message: "Not authorized" } } },
+  ]);
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "bad-api-token");
+});
+
+test('a 404 about something other than the item is not retried', async () => {
+  const fetchImpl = stubFetch([
+    { status: 404, body: { error: { message: "Edge Config not found." } } },
+  ]);
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.ok, false);
+  assert.equal(fetchImpl.calls.length, 1, "a missing store must not be retried as a create");
+});
+
+test('other failures are never retried', async () => {
+  const fetchImpl = stubFetch([{ status: 500, body: { error: { message: "boom" } } }]);
+
+  await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(fetchImpl.calls.length, 1);
+});
