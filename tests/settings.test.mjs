@@ -169,7 +169,7 @@ const settings = {
 test('a total is pieces plus shipping plus enabled fees', () => {
   const total = orderTotal([{ price: 12.99, quantity: 1 }], settings);
 
-  assert.equal(total.items, 12.99);
+  assert.equal(total.subtotal, 12.99);
   assert.equal(total.shipping, 5);
   assert.equal(total.fees, 1.5);
   assert.equal(total.total, 19.49);
@@ -193,7 +193,7 @@ test('disabled shipping is not charged', () => {
 test('quantities multiply', () => {
   const total = orderTotal([{ price: 10, quantity: 3 }], settings);
 
-  assert.equal(total.items, 30);
+  assert.equal(total.subtotal, 30);
 });
 
 // Money in floating point: 0.1 + 0.2 is famously not 0.3.
@@ -218,4 +218,14 @@ test('every charge appears as its own labelled line', () => {
 
   assert.ok(labels.includes('Shipping'));
   assert.ok(labels.includes('Handling'));
+});
+
+// An empty cart was quoting at the price of postage and handling on nothing.
+test('an empty cart costs nothing, not the price of shipping', () => {
+  const total = orderTotal([], settings);
+
+  assert.equal(total.total, 0);
+  assert.equal(total.shipping, 0);
+  assert.equal(total.fees, 0);
+  assert.deepEqual(total.lines, []);
 });

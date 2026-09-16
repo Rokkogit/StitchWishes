@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catalog — Stitch Wishess</title>
-  <meta name="description" content="Every handmade and made-to-order piece from the Stitch Wishess studio.">
+  <title>Your bag — Stitch Wishess</title>
+  <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,22 +21,16 @@
         <span class="brand__label">Stitch Wishess</span>
       </a>
       <nav class="nav">
-        <a href="collection.html" aria-current="page">Catalog</a>
+        <a href="collection.html">Catalog</a>
         <a href="about.html">The Maker</a>
-        <a href="bag.html" data-bag-count>Bag (0)</a>
+        <a href="bag.html" data-bag-count aria-current="page">Bag (0)</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <section class="page-head wrap" data-section="Catalog">
-      <p class="label">The catalog</p>
-      <h1>Every <span class="holo-text">piece</span> in the studio</h1>
-      <p>Handmade and made-to-order. When something is one of a kind, there is exactly one.</p>
-    </section>
-
-    <section class="band band--tight wrap" data-section="All pieces">
-      <div class="grid reveal" data-collection></div>
+    <section class="wrap" data-section="Your bag">
+      <div class="bag-wrap" data-bag></div>
     </section>
   </main>
 
@@ -70,8 +64,8 @@
     </div>
   </footer>
 
-  <script src="products.js?v=holo22"></script>
   <script src="cart.js?v=holo22"></script>
+  <script src="bag.js?v=holo22"></script>
   <script src="main.js?v=holo22"></script>
 </body>
 </html>

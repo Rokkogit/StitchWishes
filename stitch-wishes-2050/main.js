@@ -31,10 +31,15 @@ function mediaHtml(product, modifier) {
       ? `<span class="card__count">${images.length} photos</span>`
       : '';
 
+  // Sold out is shown on the photograph rather than only in the price, so it
+  // reads at a glance in a grid.
+  const sold = product.stock === 0 ? '<span class="card__sold">Sold out</span>' : '';
+
   return `
     <div class="${cls}">
       <img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" loading="lazy">
       ${count}
+      ${sold}
     </div>
   `;
 }
@@ -67,6 +72,52 @@ function galleryHtml(product) {
     .join('');
 
   return `${main}<div class="thumbs">${thumbs}</div>`;
+}
+
+/* ---------------------------------------------------------------- buying */
+
+// Three states, and they are genuinely different: something with no price is
+// not for sale yet, something at zero stock is gone, and everything else can
+// go in the bag. Collapsing them would tell a customer the wrong thing.
+function buyHtml(product) {
+  if (product.stock === 0) {
+    return `
+      <p class="buy-note">This one has sold. Message @stitch.wishess — another can usually be made.</p>
+      <button class="btn btn-primary" type="button" disabled>Sold out</button>
+    `;
+  }
+
+  if (product.price == null) {
+    return `
+      <p class="buy-note">No price on this one yet. Message @stitch.wishess to ask.</p>
+      <button class="btn btn-primary" type="button" disabled>Not for sale yet</button>
+    `;
+  }
+
+  const left =
+    Number.isFinite(product.stock) && product.stock <= 3
+      ? `<p class="buy-note">Only ${product.stock} left.</p>`
+      : '';
+
+  return `
+    ${left}
+    <button class="btn btn-primary" type="button" data-add>Add to bag</button>
+    <p class="buy-note" data-added hidden>
+      Added. <a href="bag.html">Go to your bag</a>
+    </p>
+  `;
+}
+
+function initBuy(root, product) {
+  const button = root.querySelector('[data-add]');
+  if (!button) return;
+
+  button.addEventListener('click', () => {
+    window.StitchCart?.add(product.handle, 1);
+
+    const added = root.querySelector('[data-added]');
+    if (added) added.hidden = false;
+  });
 }
 
 function initGallery(root) {
@@ -276,10 +327,11 @@ function renderAll(products) {
           <h1>${escapeHtml(product.title)}</h1>
           <p class="detail__price">${formatPrice(product.price)}</p>
           <div class="detail__desc"><p>${escapeHtml(product.description)}</p></div>
-          <button class="btn btn-primary" type="button">Add to bag</button>
+          ${buyHtml(product)}
         </div>
       `;
       initGallery(detail);
+      initBuy(detail, product);
       renderGrid(document.querySelector('[data-related]'), pickRandom(products, 4, product.handle));
     }
   }
