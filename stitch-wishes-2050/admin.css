@@ -1008,3 +1008,112 @@
   .picker__actions { gap: 0.4rem; }
   .picker__actions .btn { padding: 0.6rem 1rem; font-size: 0.62rem; }
 }
+
+/* ------------------------------------------------------- checkout tab --- */
+
+.charges {
+  margin-bottom: var(--s4);
+  padding: var(--s3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  backdrop-filter: blur(12px);
+}
+
+.charges .label { margin-top: 0; }
+
+.charges__empty {
+  margin: 0 0 var(--s2);
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.charge {
+  display: grid;
+  grid-template-columns: auto 1fr 8.5rem auto;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+/* Switched off, not deleted: a seasonal fee that comes back should not have
+   to be retyped from memory. */
+.charge.is-off { opacity: 0.45; }
+
+.charge__on { gap: 0; }
+
+.charge__amount {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+}
+
+.charge__drop {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106, 0.3); }
+
+.charge__warn {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--alert);
+  font-size: 0.8rem;
+}
+
+/* The preview is not decoration. It is the only place the effect of a change
+   is visible before a customer sees it. */
+.preview__lines { margin: 0; }
+
+.preview__lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--line-soft);
+}
+
+.preview__lines dt { color: var(--ink-soft); }
+.preview__lines dd { margin: 0; font-family: var(--font-mono); }
+
+.preview__total {
+  border-bottom: 0 !important;
+  margin-top: 0.3rem;
+  padding-top: 0.6rem !important;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+
+.preview__total dt { color: var(--ink) !important; }
+
+.flag--sold { background: rgba(168, 69, 106, 0.14); color: var(--alert); }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .charges { padding: var(--s2); }
+  .charge {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "on label drop" "amt amt amt";
+  }
+  .charge__on { grid-area: on; }
+  .charge__label { grid-area: label; }
+  .charge__amount { grid-area: amt; }
+  .charge__drop { grid-area: drop; }
+}

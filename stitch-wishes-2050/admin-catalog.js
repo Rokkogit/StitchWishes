@@ -12,6 +12,7 @@
 
   const state = {
     products: [],      // the working copy
+    settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [] },
     saved: '',         // JSON of the last known server state, for dirty checks
     digest: null,
     assets: [],
@@ -41,7 +42,10 @@
 
   const byHandle = (handle) => state.products.find((p) => p.handle === handle);
 
-  const isDirty = () => JSON.stringify(state.products) !== state.saved;
+  // Settings count as unsaved work too: a changed fee with no catalog edit
+  // must still light the save bar.
+  const snapshot = () => JSON.stringify({ products: state.products, settings: state.settings });
+  const isDirty = () => snapshot() !== state.saved;
 
   // Mirrors lib/catalog.mjs. The server validates regardless — this only
   // stops us proposing a handle the server would reject.
@@ -67,7 +71,7 @@
 
   function saveDraft() {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ products: state.products, digest: state.digest }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ products: state.products, settings: state.settings, digest: state.digest }));
     } catch {
       // A full or blocked localStorage costs the draft, not the edit.
     }
@@ -122,15 +126,17 @@
       state.assets = data.assets ?? [];
       state.health = data.health ?? null;
       state.digest = data.digest;
-      state.saved = JSON.stringify(data.products ?? []);
-      state.products = JSON.parse(state.saved);
+      state.settings = data.settings ?? state.settings;
+      state.products = data.products ?? [];
+      state.saved = snapshot();
 
       // A draft only belongs to the catalog it was taken from. If the store
       // has moved on since, the draft is stale and silently restoring it
       // would resurrect edits made against a different catalog.
       const draft = loadDraft();
-      if (draft && draft.digest === data.digest && JSON.stringify(draft.products) !== state.saved) {
+      if (draft && draft.digest === data.digest && JSON.stringify({ products: draft.products, settings: draft.settings ?? state.settings }) !== state.saved) {
         state.products = draft.products;
+        if (draft.settings) state.settings = draft.settings;
       } else if (draft) {
         clearDraft();
       }
@@ -169,13 +175,13 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products: state.products, digest: state.digest }),
+        body: JSON.stringify({ products: state.products, settings: state.settings, digest: state.digest }),
       });
 
       const body = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        state.saved = JSON.stringify(state.products);
+        state.saved = snapshot();
         state.digest = body.digest ?? state.digest;
         state.health = body.health ?? state.health;
         clearDraft();
@@ -274,6 +280,7 @@
     state.tab = name;
 
     el.catalogPanel.hidden = name !== 'catalog';
+    el.checkoutPanel.hidden = name !== 'checkout';
     el.homepagePanel.hidden = name !== 'homepage';
 
     for (const button of document.querySelectorAll('[data-tab]')) {
@@ -283,6 +290,7 @@
     }
 
     if (name === 'homepage') renderHomepage();
+    else if (name === 'checkout') renderCheckout();
     else render();
   }
 
@@ -356,6 +364,7 @@
       piece.hidden ? '<span class="flag flag--hidden">Hidden</span>' : '',
       !piece.images?.length ? '<span class="flag">Needs a photo</span>' : '',
       piece.price == null ? '<span class="flag">Needs a price</span>' : '',
+      piece.stock === 0 ? '<span class="flag flag--sold">Sold out</span>' : '',
     ].join('');
 
     // Only draggable in the unfiltered view: in a filtered one the visible
@@ -576,6 +585,18 @@
           <input class="field field--price" id="f-price" inputmode="decimal"
                  value="${piece.price == null ? '' : escapeHtml(piece.price)}"
                  placeholder="No price" data-field="price">
+
+          <label class="label" for="f-stock">How many are there</label>
+          <input class="field field--mono" id="f-stock" inputmode="numeric"
+                 value="${piece.stock == null ? '' : escapeHtml(piece.stock)}"
+                 placeholder="Made to order" data-field="stock">
+          <p class="hint">${
+            piece.stock == null
+              ? 'Leave empty for made to order — it never sells out.'
+              : piece.stock === 0
+                ? 'Sold out. It stays on the site but cannot be bought.'
+                : `${piece.stock} left. The site stops selling it at zero.`
+          }</p>
 
           <label class="label" for="f-desc">Description</label>
           <textarea class="field field--desc" id="f-desc" rows="9" data-field="description">${escapeHtml(piece.description)}</textarea>
@@ -860,6 +881,9 @@
     if (!piece) return;
 
     if (name === 'hidden') piece.hidden = field.checked;
+    // Empty means made to order, not zero. Zero means sold out, and treating
+    // a cleared box as sold out would take the piece off sale by accident.
+    else if (name === 'stock') piece.stock = field.value.trim() === '' ? null : Number(field.value);
     else if (name === 'price') piece.price = field.value.trim() === '' ? null : Number(field.value);
     else if (name === 'handle') piece.handle = slugify(field.value) || piece.handle;
     else piece[name] = field.value;
@@ -872,6 +896,163 @@
   // once typing stops.
   function onChange(event) {
     if (event.target.closest('[data-field="handle"]')) renderPiece();
+  }
+
+
+  /* ==================================================================
+     The Checkout tab — what a customer is charged beyond the pieces.
+     ================================================================== */
+
+  const MAX_AMOUNT = 500;
+
+  const dollars = (value) => (Number(value) || 0).toFixed(2);
+
+  function newFee() {
+    return {
+      id: `fee-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      label: '',
+      amount: 0,
+      enabled: true,
+    };
+  }
+
+  // Every charge here is applied to every order, so the preview is not
+  // decoration: it is the only place she sees the effect of a change before
+  // a customer does.
+  function previewTotal(example) {
+    const s = state.settings;
+    let total = example;
+
+    if (s.shipping?.enabled !== false) total += Number(s.shipping?.amount) || 0;
+    for (const fee of s.fees ?? []) {
+      if (fee.enabled === false) continue;
+      total += Number(fee.amount) || 0;
+    }
+
+    return total;
+  }
+
+  function chargeRow(charge, kind, index) {
+    const id = kind === 'shipping' ? 'shipping' : `fee-${index}`;
+    const over = (Number(charge.amount) || 0) > MAX_AMOUNT;
+
+    return `
+      <div class="charge${charge.enabled === false ? ' is-off' : ''}" data-charge="${kind}" data-charge-index="${index}">
+        <label class="toggle charge__on">
+          <input type="checkbox" data-charge-field="enabled" ${charge.enabled === false ? '' : 'checked'}>
+          <span class="sr-only">Charge this</span>
+        </label>
+
+        <input class="field charge__label" value="${escapeHtml(charge.label ?? '')}"
+               placeholder="${kind === 'shipping' ? 'Shipping' : 'What is this for?'}"
+               aria-label="Name" data-charge-field="label">
+
+        <div class="charge__amount">
+          <span aria-hidden="true">$</span>
+          <input class="field field--mono" inputmode="decimal"
+                 value="${escapeHtml(dollars(charge.amount))}"
+                 aria-label="Amount" data-charge-field="amount">
+        </div>
+
+        ${kind === 'fee'
+          ? '<button class="charge__drop" type="button" data-drop-fee title="Remove this fee">&times;</button>'
+          : '<span class="charge__drop" aria-hidden="true"></span>'}
+
+        ${over ? `<p class="charge__warn">The most you can charge here is ${MAX_AMOUNT}.</p>` : ''}
+      </div>
+    `;
+  }
+
+  function renderCheckout() {
+    const s = state.settings;
+    const example = 12.99;
+
+    el.checkoutPanel.innerHTML = `
+      <div class="admin-head"><div>
+        <h1>Checkout</h1>
+        <p class="admin-sub">What a customer pays on top of the piece itself.</p>
+      </div></div>
+
+      <section class="charges">
+        <p class="label">Shipping</p>
+        ${chargeRow(s.shipping ?? { label: 'Shipping', amount: 0, enabled: false }, 'shipping', 0)}
+        <p class="hint">Charged once per order. Switch it off for free shipping.</p>
+      </section>
+
+      <section class="charges">
+        <p class="label">Extra fees</p>
+        ${(s.fees ?? []).length
+          ? (s.fees ?? []).map((fee, i) => chargeRow(fee, 'fee', i)).join('')
+          : '<p class="charges__empty">No extra fees. Handling, packaging, rush — whatever the shop needs.</p>'}
+        <button class="btn btn-ghost" type="button" data-add-fee>Add a fee</button>
+        <p class="hint">Each fee is its own line at checkout, so a customer sees what they are paying for.</p>
+      </section>
+
+      <section class="charges preview">
+        <p class="label">On a ${dollars(example)} piece</p>
+        <dl class="preview__lines">
+          <div><dt>The piece</dt><dd>${dollars(example)}</dd></div>
+          ${s.shipping?.enabled !== false && (Number(s.shipping?.amount) || 0) > 0
+            ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>${dollars(s.shipping.amount)}</dd></div>`
+            : ''}
+          ${(s.fees ?? [])
+            .filter((fee) => fee.enabled !== false && (Number(fee.amount) || 0) > 0)
+            .map((fee) => `<div><dt>${escapeHtml(fee.label || 'Fee')}</dt><dd>${dollars(fee.amount)}</dd></div>`)
+            .join('')}
+          <div class="preview__total"><dt>Customer pays</dt><dd>${dollars(previewTotal(example))}</dd></div>
+        </dl>
+      </section>
+    `;
+  }
+
+  function onCheckoutInput(event) {
+    const field = event.target.closest('[data-charge-field]');
+    if (!field) return;
+
+    const row = field.closest('[data-charge]');
+    const kind = row.dataset.charge;
+    const index = Number(row.dataset.chargeIndex);
+    const name = field.dataset.chargeField;
+
+    const target =
+      kind === 'shipping'
+        ? (state.settings.shipping ??= { label: 'Shipping', amount: 0, enabled: false })
+        : state.settings.fees[index];
+
+    if (!target) return;
+
+    if (name === 'enabled') target.enabled = field.checked;
+    else if (name === 'amount') target.amount = field.value.trim() === '' ? 0 : Number(field.value);
+    else target[name] = field.value;
+
+    touch();
+
+    // Redrawing on every keystroke would move the caret. The preview is
+    // refreshed on blur instead, and on the toggles, which cannot be typed in.
+    if (name === 'enabled') renderCheckout();
+  }
+
+  function onCheckoutClick(event) {
+    if (event.target.closest('[data-add-fee]')) {
+      state.settings.fees = [...(state.settings.fees ?? []), newFee()];
+      touch();
+      renderCheckout();
+      // Land the cursor in the new row rather than making her hunt for it.
+      const rows = el.checkoutPanel.querySelectorAll('[data-charge="fee"] .charge__label');
+      rows[rows.length - 1]?.focus();
+      return;
+    }
+
+    const drop = event.target.closest('[data-drop-fee]');
+    if (drop) {
+      const index = Number(drop.closest('[data-charge]').dataset.chargeIndex);
+      const fee = state.settings.fees[index];
+      if (fee.label && !window.confirm(`Remove the "${fee.label}" fee?`)) return;
+
+      state.settings.fees = state.settings.fees.filter((_, i) => i !== index);
+      touch();
+      renderCheckout();
+    }
   }
 
   /* ---------------------------------------------------------------- boot */
@@ -887,7 +1068,14 @@
   function wire() {
     el.main = $('[data-catalog]');
     el.catalogPanel = el.main;
+    el.checkoutPanel = $('[data-checkout]');
     el.homepagePanel = $('[data-homepage]');
+
+    el.checkoutPanel.addEventListener('input', onCheckoutInput);
+    el.checkoutPanel.addEventListener('click', onCheckoutClick);
+    // Redraw on blur rather than on input: rebuilding the form under the
+    // cursor would send the caret to the end on every keystroke.
+    el.checkoutPanel.addEventListener('blur', renderCheckout, true);
 
     for (const button of document.querySelectorAll('[data-tab]')) {
       button.addEventListener('click', () => showTab(button.dataset.tab));

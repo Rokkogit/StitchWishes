@@ -9,6 +9,8 @@ import {
   readCatalog,
   readDigest,
   writeCatalog,
+  readStore,
+  writeStore,
   CATALOG_KEY,
 } from '../lib/global-config.mjs';
 
@@ -405,4 +407,101 @@ test('other failures are never retried', async () => {
   await writeCatalog(env(), products, fetchImpl);
 
   assert.equal(fetchImpl.calls.length, 1);
+});
+
+/* ------------------------------- two keys in one store ------------------ */
+// The store now holds settings beside the catalog. They are written in one
+// PATCH so a save cannot half-apply, and each key needs create on its first
+// write and upsert thereafter — which is per key, not per request.
+
+test('readStore returns both keys', async () => {
+  const fetchImpl = stubFetch({
+    status: 200,
+    body: { products: [{ handle: 'pen' }], settings: { shipping: { amount: 5 } } },
+  });
+
+  const result = await readStore(env(), fetchImpl);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.products.length, 1);
+  assert.equal(result.settings.shipping.amount, 5);
+});
+
+test('readStore reports which keys already exist', async () => {
+  const fetchImpl = stubFetch({ status: 200, body: { products: [] } });
+
+  const result = await readStore(env(), fetchImpl);
+
+  assert.equal(result.existing.has('products'), true);
+  assert.equal(result.existing.has('settings'), false);
+});
+
+test('readStore on an untouched store reports neither key', async () => {
+  const result = await readStore(env(), stubFetch({ status: 200, body: {} }));
+
+  assert.equal(result.existing.size, 0);
+  assert.deepEqual(result.products, []);
+  assert.equal(result.settings, null);
+});
+
+test('writeStore sends both keys in a single request', async () => {
+  const fetchImpl = stubFetch({ status: 200, body: { status: 'ok' } });
+
+  await writeStore(
+    env(),
+    { products: [], settings: { shipping: { amount: 1 } } },
+    new Set(['products', 'settings']),
+    fetchImpl
+  );
+
+  assert.equal(fetchImpl.calls.length, 1, 'a save must not half-apply');
+  const { items } = JSON.parse(fetchImpl.calls[0].options.body);
+  assert.equal(items.length, 2);
+});
+
+// The bug this guards: a store where products exists but settings does not.
+// Sending upsert for both 404s on settings; sending create for both fails on
+// products. The operation has to be chosen per key.
+test('writeStore creates the new key and upserts the existing one', async () => {
+  const fetchImpl = stubFetch({ status: 200, body: { status: 'ok' } });
+
+  await writeStore(
+    env(),
+    { products: [], settings: {} },
+    new Set(['products']),
+    fetchImpl
+  );
+
+  const { items } = JSON.parse(fetchImpl.calls[0].options.body);
+  const byKey = Object.fromEntries(items.map((item) => [item.key, item.operation]));
+
+  assert.equal(byKey.products, 'upsert');
+  assert.equal(byKey.settings, 'create');
+});
+
+test('writeStore creates both keys on a brand new store', async () => {
+  const fetchImpl = stubFetch({ status: 200, body: { status: 'ok' } });
+
+  await writeStore(env(), { products: [], settings: {} }, new Set(), fetchImpl);
+
+  const { items } = JSON.parse(fetchImpl.calls[0].options.body);
+  assert.ok(items.every((item) => item.operation === 'create'));
+});
+
+test('writeStore omits a key it was not given', async () => {
+  const fetchImpl = stubFetch({ status: 200, body: { status: 'ok' } });
+
+  await writeStore(env(), { products: [] }, new Set(['products']), fetchImpl);
+
+  const { items } = JSON.parse(fetchImpl.calls[0].options.body);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].key, 'products');
+});
+
+test('writeStore still reports a refused token', async () => {
+  const fetchImpl = stubFetch({ status: 403, body: { error: { message: 'Nope' } } });
+
+  const result = await writeStore(env(), { products: [] }, new Set(['products']), fetchImpl);
+
+  assert.equal(result.reason, 'bad-api-token');
 });

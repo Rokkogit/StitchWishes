@@ -9,8 +9,9 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readConfig, verifyToken, readCookie, COOKIE_NAME } from '../lib/session.mjs';
-import { readCatalog, readDigest, writeCatalog } from '../lib/global-config.mjs';
+import { readStore, readDigest, writeStore, CATALOG_KEY, SETTINGS_KEY } from '../lib/global-config.mjs';
 import { validateCatalog, catalogHealth } from '../lib/catalog.mjs';
+import { validateSettings, DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
 import { list } from '@vercel/blob';
 
@@ -52,7 +53,7 @@ const UNAUTHORIZED = () => json(401, { error: 'Sign in first.' });
 
 async function handleGet() {
   const [catalog, digest, uploads] = await Promise.all([
-    readCatalog(process.env),
+    readStore(process.env),
     readDigest(process.env),
     uploadedPhotos(),
   ]);
@@ -64,6 +65,9 @@ async function handleGet() {
 
   return json(200, {
     products: catalog.products,
+    // Defaults rather than null, so the editor always has a shape to draw and
+    // a store with no settings yet is not a special case in the browser.
+    settings: catalog.settings ?? DEFAULT_SETTINGS,
     seeded: catalog.seeded,
     // Null rather than an error: a missing digest costs conflict detection on
     // the next save, which is worth degrading rather than blocking an edit.
@@ -84,8 +88,15 @@ async function handlePost(request) {
   }
 
   const result = validateCatalog(body?.products);
-  if (!result.ok) {
-    return json(400, { error: 'Some pieces need fixing.', errors: result.errors });
+  const settings = validateSettings(body?.settings);
+
+  // Both are reported together. Fixing a price only to be told about a fee is
+  // the kind of one-at-a-time validation that makes a form miserable.
+  if (!result.ok || !settings.ok) {
+    return json(400, {
+      error: 'Some of this needs fixing.',
+      errors: [...(result.errors ?? []), ...(settings.errors ?? [])],
+    });
   }
 
   // Conflict check before writing, not after. The digest changes on every
@@ -98,7 +109,19 @@ async function handlePost(request) {
     });
   }
 
-  const write = await writeCatalog(process.env, result.value);
+  // Re-read to learn which keys the store already holds. A key that has never
+  // existed must be created rather than upserted, and right after this feature
+  // ships the normal state is a store with a catalog but no settings.
+  const store = await readStore(process.env);
+  const existing = store.ok ? store.existing : new Set();
+
+  // One write for both, so the catalog and the prices that go with it change
+  // together or not at all.
+  const write = await writeStore(
+    process.env,
+    { [CATALOG_KEY]: result.value, [SETTINGS_KEY]: settings.value },
+    existing
+  );
 
   if (!write.ok) {
     console.error(
