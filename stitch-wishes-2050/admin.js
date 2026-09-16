@@ -17,13 +17,15 @@ const panels = new Map(
   ])
 );
 
+const gateWrap = document.querySelector('[data-gate-wrap]');
 const thread = document.querySelector('.gate__thread');
 const bead = document.querySelector('[data-bead]');
 const form = document.querySelector('[data-login]');
 const input = document.querySelector('#code');
 const errorBox = document.querySelector('[data-error]');
 const submit = document.querySelector('[data-submit]');
-const expiry = document.querySelector('[data-expiry]');
+
+let mounted = false;
 
 /* ------------------------------------------------------------------ view */
 
@@ -34,7 +36,18 @@ function show(state) {
   thread.classList.toggle('is-sewn', signedIn);
   bead.classList.toggle('is-strung', signedIn);
 
+  // The gate is a narrow centred column; the workroom is the full page. They
+  // cannot share a wrapper, so the whole gate steps aside once you are in.
+  gateWrap.hidden = signedIn;
+
   if (state === 'anon') input.focus();
+
+  // Mount once. Re-mounting on every sign-in would stack event listeners and
+  // discard the working draft.
+  if (signedIn && !mounted) {
+    mounted = true;
+    window.StitchAdminCatalog?.mount();
+  }
 }
 
 function showError(message) {
@@ -45,18 +58,6 @@ function showError(message) {
 function clearError() {
   errorBox.textContent = '';
   errorBox.hidden = true;
-}
-
-function showExpiry(exp) {
-  if (!exp) {
-    expiry.textContent = 'Signed in.';
-    return;
-  }
-
-  expiry.textContent = `Signed in until ${new Date(exp).toLocaleString([], {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })}`;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -92,12 +93,7 @@ async function loadSession() {
     const response = await call('/api/admin-session', { method: 'GET' });
     const data = await response.json();
 
-    if (data.authed) {
-      showExpiry(data.exp);
-      show('authed');
-    } else {
-      show('anon');
-    }
+    show(data.authed ? 'authed' : 'anon');
   } catch (error) {
     show('anon');
     showError(error.message);

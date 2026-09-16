@@ -230,9 +230,24 @@ function initReveals() {
 
 /* -------------------------------------------------------------------- boot */
 
-document.addEventListener('DOMContentLoaded', () => {
-  const products = window.STITCH_PRODUCTS || [];
+/* The catalog now lives in a store the admin panel writes to, but the bundled
+   copy ships with the page. So: paint from the bundle immediately, then ask
+   the server and repaint only if it disagrees. No spinner, no empty shop if
+   the API is unreachable, and edits still appear on the next load. */
 
+async function fetchLiveProducts() {
+  try {
+    const response = await fetch('/api/catalog');
+    if (!response.ok) return null;          // 503 means "use your bundled copy"
+
+    const data = await response.json();
+    return Array.isArray(data.products) ? data.products : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderAll(products) {
   renderGrid(document.querySelector('[data-featured]'), products.slice(0, 8));
   renderGrid(document.querySelector('[data-collection]'), products);
 
@@ -268,8 +283,26 @@ document.addEventListener('DOMContentLoaded', () => {
       renderGrid(document.querySelector('[data-related]'), pickRandom(products, 4, product.handle));
     }
   }
+}
 
+document.addEventListener('DOMContentLoaded', async () => {
+  const bundled = window.STITCH_PRODUCTS || [];
+
+  renderAll(bundled);
   initClouds();
   initThread();
   initReveals();
+
+  const live = await fetchLiveProducts();
+
+  // Repaint only on a real difference. Redrawing identical markup would reset
+  // a gallery someone is already clicking through.
+  if (!live || JSON.stringify(live) === JSON.stringify(bundled)) return;
+
+  renderAll(live);
+  initReveals();
+
+  // The grids changed height, so the thread's bead positions are stale. It
+  // re-measures on resize, which is exactly the recalculation needed here.
+  window.dispatchEvent(new Event('resize'));
 });

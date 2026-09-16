@@ -177,7 +177,18 @@ test('a token with a tampered payload is rejected', () => {
 test('a token with a tampered signature is rejected', () => {
   const token = createToken(SECRET, HOUR);
   const [payload, signature] = token.split('.');
-  const flipped = signature.slice(0, -1) + (signature.endsWith('A') ? 'B' : 'A');
+
+  // Flip a character in the middle, not at the end. A 32-byte digest encodes
+  // to 43 base64url characters, and the last one carries only 4 significant
+  // bits — several different characters there decode to the same bytes, so
+  // changing it may not change the signature at all.
+  const middle = Math.floor(signature.length / 2);
+  const flipped =
+    signature.slice(0, middle) +
+    (signature[middle] === 'A' ? 'B' : 'A') +
+    signature.slice(middle + 1);
+
+  assert.notEqual(flipped, signature, 'the test must actually alter the signature');
 
   const result = verifyToken(SECRET, `${payload}.${flipped}`);
 

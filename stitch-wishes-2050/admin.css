@@ -16,6 +16,12 @@
 
 .admin {
   min-height: 100vh;
+}
+
+/* The gate is a narrow centred column; the workroom is the whole page. They
+   are separate wrappers because no single layout serves both. */
+.gate-wrap {
+  min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
 }
@@ -222,4 +228,439 @@
   .gate__input {
     transition: none;
   }
+}
+
+/* ==========================================================================
+   The workroom.
+
+   The editor reuses the storefront's own .grid, .card and .detail components
+   on purpose: what you are editing should look like what it becomes, and a
+   second visual language for the same objects would only add a translation
+   step. What is added below is the editing apparatus, nothing else.
+   ========================================================================== */
+
+.app__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  padding: var(--s2) var(--s3);
+  background: var(--paper-raised);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-soft);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.app__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.app__nav a {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.app__nav a:hover { color: var(--ink); }
+
+/* Room at the foot so the save bar never covers the last row. */
+.app__main {
+  padding-block: var(--s4) var(--s6);
+}
+
+/* ------------------------------------------------------------------ head */
+
+.admin-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+
+.admin-head h1 { margin: 0 0 0.3rem; font-size: clamp(1.6rem, 3vw, 2.2rem); }
+
+.admin-sub { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
+
+.stats {
+  display: flex;
+  gap: var(--s3);
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.stats dt {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.stats dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+/* --------------------------------------------------------------- filters */
+
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+
+.chip {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chip.is-on {
+  background: var(--ink);
+  border-color: transparent;
+  color: var(--paper);
+}
+
+/* ----------------------------------------------------------- grid + cards */
+
+/* On the storefront .card is an anchor; here it is a button. Reset what the
+   browser gives buttons so the two render identically. */
+.admin-card {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Hidden pieces stay in the grid rather than vanishing from it. A piece you
+   cannot see is a piece you forget to bring back. */
+.admin-card.is-hidden { opacity: 0.5; }
+
+.flags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.flag {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(13, 42, 49, 0.07);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flag--hidden { background: rgba(168, 69, 106, 0.12); color: var(--alert); }
+
+.card--add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 16rem;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+.card--add:hover { border-color: var(--aurora); color: var(--ink); }
+
+.card--add__plus {
+  font-size: 2rem;
+  line-height: 1;
+  background: var(--holo-ink);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ----------------------------------------------------------- piece editor */
+
+.back {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-bottom: var(--s3);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.back:hover { color: var(--ink); }
+
+.edit-fields { display: grid; gap: 0.3rem; }
+
+.edit-fields .label { margin: var(--s2) 0 0; }
+
+/* Fields carry the type they will become, so the editor reads as the page
+   rather than as a form sitting on top of one. */
+.field {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--aurora);
+  box-shadow: 0 0 0 4px rgba(143, 212, 230, 0.22);
+}
+
+.field--title {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.4vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.field--price,
+.field--mono { font-family: var(--font-mono); }
+
+.field--desc { line-height: 1.6; resize: vertical; }
+
+.hint {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  word-break: break-all;
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--line);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.btn-danger { color: var(--alert); border-color: rgba(168, 69, 106, 0.3); }
+.btn-danger:hover { border-color: var(--alert); }
+
+/* ------------------------------------------------------- editing a gallery */
+
+.edit-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 0.5rem;
+  margin: 0.7rem 0;
+}
+
+.edit-thumb {
+  position: relative;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--paper-raised);
+  aspect-ratio: 1;
+}
+
+.edit-thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+.edit-thumb.is-primary { box-shadow: 0 0 0 2px var(--aurora); }
+
+.edit-thumb__tools {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  background: rgba(13, 42, 49, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.edit-thumb__tools button,
+.edit-thumb__tools span {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 0.25rem 0;
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.edit-thumb__tools span { opacity: 0.6; cursor: default; }
+.edit-thumb__tools button:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* -------------------------------------------------------------- the picker */
+
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--s2);
+  background: rgba(13, 42, 49, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.picker__panel {
+  width: min(56rem, 100%);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.picker__head h2 { margin: 0; font-size: 1.1rem; }
+
+.picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.6rem;
+  padding: var(--s3);
+  overflow-y: auto;
+}
+
+.picker__item {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--paper-raised);
+  aspect-ratio: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.picker__item img { width: 100%; height: 100%; object-fit: contain; }
+
+.picker__item:hover { transform: translateY(-2px); border-color: var(--aurora); }
+
+/* Already on this piece — clicking it again takes it off. */
+.picker__item.is-used { box-shadow: 0 0 0 2px var(--aurora); }
+
+.picker__tick {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.4rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.7rem;
+}
+
+/* --------------------------------------------------------------- save bar */
+
+.savebar {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s2);
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0.6rem 0.7rem 0.6rem var(--s3);
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px -18px rgba(13, 42, 49, 0.5);
+  max-width: calc(100vw - 2rem);
+}
+
+.savebar__text {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.admin-message {
+  margin: 0;
+  padding: 0.8rem var(--s3);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.admin-message.is-good { background: rgba(174, 226, 210, 0.4); color: var(--ink); }
+.admin-message.is-bad { background: rgba(168, 69, 106, 0.12); color: var(--alert); }
+
+.is-busy { cursor: progress; }
+
+@media (max-width: 720px) {
+  .app__bar { padding: var(--s2); }
+  .app__bar .brand__label { display: none; }
+  .savebar { width: calc(100vw - 2rem); justify-content: space-between; }
+  .stats { gap: var(--s2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card--add,
+  .picker__item { transition: none; }
 }

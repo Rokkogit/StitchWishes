@@ -9,90 +9,109 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=holo11">
-  <link rel="stylesheet" href="admin.css?v=holo11">
+  <link rel="stylesheet" href="styles.css?v=holo12">
+  <link rel="stylesheet" href="admin.css?v=holo12">
 </head>
 <body class="admin">
-  <a class="brand admin__brand" href="index.html">
-    <span class="brand__mark"></span>
-    <span class="brand__label">Stitch Wishess</span>
-  </a>
+  <!-- ──────────────────────────────── the gate ───────────────────────────── -->
+  <div class="gate-wrap" data-gate-wrap>
+    <a class="brand admin__brand" href="index.html">
+      <span class="brand__mark"></span>
+      <span class="brand__label">Stitch Wishess</span>
+    </a>
 
-  <main class="gate">
-    <!-- One bead on a strand: hollow when signed out, sewn and strung when
-         signed in. The storefront's thread maps scroll position; here it maps
-         session state. -->
-    <div class="gate__thread" aria-hidden="true">
-      <svg class="stitch" viewBox="0 0 2 64" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="gateHolo" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#8fd4e6"/>
-            <stop offset="45%" stop-color="#9cc2e6"/>
-            <stop offset="100%" stop-color="#f0c0e4"/>
-          </linearGradient>
-        </defs>
-        <line class="stitch__track" x1="1" y1="0" x2="1" y2="64"/>
-        <line class="stitch__sewn" x1="1" y1="0" x2="1" y2="64" data-sewn/>
-      </svg>
-      <span class="bead" data-bead></span>
-    </div>
-
-    <!-- Checking is the first paint, so a signed-in admin never sees the
-         form flash before the panel arrives. -->
-    <section class="gate__panel" data-state="checking">
-      <p class="gate__waiting">Checking your session</p>
-    </section>
-
-    <section class="gate__panel" data-state="anon" hidden>
-      <h1>Back of house</h1>
-      <p class="gate__lede">This part of the studio is yours. Enter your code to open it.</p>
-
-      <form class="gate__form" data-login novalidate>
-        <label class="label" for="code">Studio code</label>
-        <input
-          class="gate__input"
-          id="code"
-          name="code"
-          type="password"
-          autocomplete="current-password"
-          spellcheck="false"
-          autocapitalize="off"
-          required>
-
-        <p class="gate__error" data-error role="alert" hidden></p>
-
-        <button class="btn btn-primary gate__submit" type="submit" data-submit>
-          Open the studio
-        </button>
-      </form>
-    </section>
-
-    <section class="gate__panel" data-state="authed" hidden>
-      <h1>You're in</h1>
-      <p class="gate__lede">
-        Nothing lives here yet. What you can change from this screen is the
-        next thing to design.
-      </p>
-
-      <div class="gate__shell">
-        <p class="label">Session</p>
-        <p class="gate__meta" data-expiry></p>
+    <main class="gate">
+      <!-- One bead on a strand: hollow when signed out, sewn and strung when
+           signed in. The storefront's thread maps scroll position; here it maps
+           session state. -->
+      <div class="gate__thread" aria-hidden="true">
+        <svg class="stitch" viewBox="0 0 2 64" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gateHolo" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8fd4e6"/>
+              <stop offset="45%" stop-color="#9cc2e6"/>
+              <stop offset="100%" stop-color="#f0c0e4"/>
+            </linearGradient>
+          </defs>
+          <line class="stitch__track" x1="1" y1="0" x2="1" y2="64"/>
+          <line class="stitch__sewn" x1="1" y1="0" x2="1" y2="64" data-sewn/>
+        </svg>
+        <span class="bead" data-bead></span>
       </div>
 
-      <button class="btn btn-ghost" type="button" data-logout>Sign out</button>
-    </section>
-
-    <noscript>
-      <section class="gate__panel">
-        <h1>Back of house</h1>
-        <p class="gate__lede">
-          This page needs JavaScript to reach the studio. Turn it on and
-          reload.
-        </p>
+      <!-- Checking is the first paint, so a signed-in admin never sees the
+           form flash before the workroom arrives. -->
+      <section class="gate__panel" data-state="checking">
+        <p class="gate__waiting">Checking your session</p>
       </section>
-    </noscript>
-  </main>
 
-  <script src="admin.js?v=holo11"></script>
+      <section class="gate__panel" data-state="anon" hidden>
+        <h1>Back of house</h1>
+        <p class="gate__lede">This part of the studio is yours. Enter your code to open it.</p>
+
+        <form class="gate__form" data-login novalidate>
+          <label class="label" for="code">Studio code</label>
+          <input
+            class="gate__input"
+            id="code"
+            name="code"
+            type="password"
+            autocomplete="current-password"
+            spellcheck="false"
+            autocapitalize="off"
+            required>
+
+          <p class="gate__error" data-error role="alert" hidden></p>
+
+          <button class="btn btn-primary gate__submit" type="submit" data-submit>
+            Open the studio
+          </button>
+        </form>
+      </section>
+
+      <noscript>
+        <section class="gate__panel">
+          <h1>Back of house</h1>
+          <p class="gate__lede">
+            This page needs JavaScript to reach the studio. Turn it on and
+            reload.
+          </p>
+        </section>
+      </noscript>
+    </main>
+  </div>
+
+  <!-- ───────────────────────────── the workroom ──────────────────────────── -->
+  <div class="app" data-state="authed" hidden>
+    <header class="app__bar">
+      <a class="brand" href="index.html">
+        <span class="brand__mark"></span>
+        <span class="brand__label">Stitch Wishess</span>
+      </a>
+      <nav class="app__nav">
+        <a href="collection.html" target="_blank" rel="noopener">View the shop</a>
+        <button class="btn btn-ghost" type="button" data-logout>Sign out</button>
+      </nav>
+    </header>
+
+    <p class="admin-message" data-message role="status" hidden></p>
+
+    <main class="app__main wrap" data-catalog></main>
+
+    <!-- Appears only when there is something to save. -->
+    <div class="savebar" data-savebar hidden>
+      <span class="savebar__text" data-savebar-text>Unsaved changes</span>
+      <button class="btn btn-ghost" type="button" data-discard>Discard</button>
+      <button class="btn btn-primary" type="button" data-save>Save</button>
+    </div>
+  </div>
+
+  <div class="picker" data-picker hidden></div>
+
+  <!-- products.js is the bundled catalog: the seed for a store that has never
+       been written to, and the storefront's fallback. -->
+  <script src="products.js?v=holo12"></script>
+  <script src="admin-catalog.js?v=holo12"></script>
+  <script src="admin.js?v=holo12"></script>
 </body>
 </html>
