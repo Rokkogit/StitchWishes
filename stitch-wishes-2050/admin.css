@@ -762,3 +762,155 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-card__grip { transition: none; }
 }
+
+/* ==========================================================================
+   Density.
+
+   The shop draws a card at 15.5rem because a customer is looking at one piece
+   at a time. This is an inventory: the job is seeing the whole catalog at
+   once, so the same components run smaller here. Scoped to .app__main so the
+   storefront keeps its own proportions.
+   ========================================================================== */
+
+.app__main .grid {
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--s2);
+}
+
+.app__main .card__title {
+  font-size: 0.86rem;
+  line-height: 1.25;
+  margin: 0 0 0.2rem;
+}
+
+.app__main .card__price {
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.app__main .admin-card__open {
+  padding: 7px 7px 0.7rem;
+}
+
+.app__main .card__count {
+  right: 0.4rem;
+  bottom: 0.4rem;
+  padding: 0.18rem 0.4rem;
+  font-size: 0.55rem;
+}
+
+.app__main .flag {
+  font-size: 0.52rem;
+  padding: 0.15rem 0.4rem;
+}
+
+/* No fixed height: it should match whatever row it sits in. */
+.card--add {
+  min-height: 0;
+  gap: 0.4rem;
+  font-size: 0.62rem;
+}
+
+.card--add__plus { font-size: 1.6rem; }
+
+/* ----------------------------------------------------------- drag feeling */
+
+.admin-card {
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* The card you are holding: lifted slightly out of the grid and faded, so the
+   gap it leaves reads as a gap rather than as a missing piece. */
+.admin-card.is-dragging {
+  opacity: 0.4;
+  transform: scale(0.96) rotate(-1deg);
+}
+
+.admin-card.is-over {
+  border-color: var(--aurora);
+  box-shadow: 0 0 0 3px rgba(143, 212, 230, 0.35);
+  transform: translateY(-3px);
+}
+
+/* Which one landed, when several slid at once. */
+.admin-card.just-moved {
+  animation: landed 0.7s ease-out;
+}
+
+@keyframes landed {
+  0% { box-shadow: 0 0 0 3px rgba(143, 212, 230, 0.55); }
+  100% { box-shadow: 0 0 0 3px rgba(143, 212, 230, 0); }
+}
+
+/* --------------------------------------------------------------- phone --- */
+
+@media (max-width: 560px) {
+  /* Two across rather than one enormous column. */
+  .app__main .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .app__main {
+    padding-block: var(--s3) var(--s6);
+  }
+
+  .admin-head {
+    display: block;
+    margin-bottom: var(--s2);
+  }
+
+  .admin-head h1 { font-size: 1.5rem; }
+  .admin-sub { font-size: 0.82rem; }
+
+  /* The stats become a single scrollable strip instead of a wrapping block
+     that pushes the catalog off the screen. */
+  .stats {
+    gap: 1.1rem;
+    margin-top: var(--s2);
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
+
+  .stats div { flex: none; }
+  .stats dd { font-size: 1.05rem; }
+
+  .filters { gap: 0.35rem; margin-bottom: var(--s2); }
+  .chip { padding: 0.32rem 0.7rem; font-size: 0.6rem; }
+  .filters__note { font-size: 0.55rem; }
+
+  .app__main .card__title { font-size: 0.8rem; }
+
+  /* Reordering needs a pointer, so the invitation only appears where it
+     can be accepted. */
+  .admin-card__grip { display: none; }
+
+  .picker__grid {
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    padding: var(--s2);
+    gap: 0.4rem;
+  }
+
+  .edit-thumbs { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-card { transition: none; }
+  .admin-card.is-dragging { transform: none; }
+  .admin-card.is-over { transform: none; }
+  .admin-card.just-moved { animation: none; }
+}
+
+@media (max-width: 560px) {
+  /* 28px of gutter either side costs a fifth of a phone screen. The admin can
+     run closer to the edge than the shop does. */
+  .app__main.wrap {
+    padding-inline: var(--s2);
+  }
+
+  /* A 2:3 frame fills a phone before you reach any of the fields. Shorter
+     here; the photograph is contained either way, so nothing is cropped. */
+  .app__main .detail__media img {
+    aspect-ratio: 3 / 4;
+  }
+}

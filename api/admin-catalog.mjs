@@ -77,17 +77,28 @@ async function handlePost(request) {
   const write = await writeCatalog(process.env, result.value);
 
   if (!write.ok) {
-    console.error(`[admin-catalog] write failed: ${write.reason} ${write.status ?? ''}`);
+    console.error(
+      `[admin-catalog] write failed: ${write.reason} ${write.status ?? ''} ${write.detail ?? ''}`
+    );
 
     if (write.reason === 'missing-api-token') {
       return json(503, { error: 'Saving is not configured: VERCEL_API_TOKEN is unset.' });
     }
+    if (write.reason === 'unreachable') {
+      return json(502, { error: 'Could not reach the catalog store. Nothing was changed.' });
+    }
+
+    // The status and the store's own words go in the message. A failure nobody
+    // can diagnose without server logs is barely better than a silent one.
+    const said = [write.status && `HTTP ${write.status}`, write.detail].filter(Boolean).join(' — ');
+
     if (write.reason === 'bad-api-token') {
       return json(502, {
-        error: 'The Vercel API token was refused — it has expired, been revoked, or lacks the scope to write.',
+        error: `The Vercel API token was refused (${said}). It has expired, been revoked, or lacks the scope to write.`,
       });
     }
-    return json(502, { error: 'The catalog store refused the write. Nothing was changed.' });
+
+    return json(502, { error: `The catalog store refused the write (${said}). Nothing was changed.` });
   }
 
   // Hand back the new digest so the editor can save again without reloading.

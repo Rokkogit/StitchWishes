@@ -300,3 +300,47 @@ test('writeCatalog surfaces a network error rather than throwing', async () => {
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'unreachable');
 });
+
+// The first real write failure returned a message that named no cause, which
+// left the only diagnosis in a log I could not reach. Whatever Vercel says
+// about OUR configuration is safe to repeat and is the fastest way to a fix.
+
+test('writeCatalog reports the upstream status code', async () => {
+  const fetchImpl = stubFetch({ status: 400, body: { error: { code: 'bad_request', message: 'Invalid key' } } });
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.status, 400);
+});
+
+test('writeCatalog carries the upstream message through', async () => {
+  const fetchImpl = stubFetch({ status: 400, body: { error: { code: 'bad_request', message: 'Invalid key' } } });
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.detail, 'Invalid key');
+});
+
+test('writeCatalog falls back to the upstream code when there is no message', async () => {
+  const fetchImpl = stubFetch({ status: 422, body: { error: { code: 'size_exceeded' } } });
+
+  assert.equal((await writeCatalog(env(), products, fetchImpl)).detail, 'size_exceeded');
+});
+
+test('writeCatalog reports a detail on a refused token too', async () => {
+  const fetchImpl = stubFetch({ status: 403, body: { error: { code: 'forbidden', message: 'Not authorized' } } });
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.reason, 'bad-api-token');
+  assert.equal(result.detail, 'Not authorized');
+});
+
+test('writeCatalog survives an error body that is not JSON', async () => {
+  const fetchImpl = stubFetch({ status: 502, body: undefined });
+
+  const result = await writeCatalog(env(), products, fetchImpl);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 502);
+});

@@ -330,7 +330,8 @@
 
     return `
       <div class="card admin-card${piece.hidden ? ' is-hidden' : ''}"
-           ${canDrag ? 'draggable="true"' : ''} data-index="${index}">
+           ${canDrag ? 'draggable="true"' : ''}
+           data-index="${index}" data-handle="${escapeHtml(piece.handle)}">
         <button class="admin-card__open" type="button" data-open="${escapeHtml(piece.handle)}">
           ${media}
           <div class="card__body">
@@ -346,10 +347,47 @@
 
   /* ------------------------------------------------------------ reordering */
 
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // FLIP. The grid is rebuilt from scratch on every move, so cards would
+  // otherwise teleport. Measure where each one was, let it be redrawn wherever
+  // it now belongs, then start it back at the old place and let it travel.
+  //
+  // Keyed by handle rather than index: the indices are exactly what the move
+  // changed, so they cannot identify anything across it.
+  function cardRects() {
+    const rects = new Map();
+    for (const node of el.main.querySelectorAll('[data-handle]')) {
+      rects.set(node.dataset.handle, node.getBoundingClientRect());
+    }
+    return rects;
+  }
+
+  function playFlip(before) {
+    if (REDUCED) return;
+
+    for (const node of el.main.querySelectorAll('[data-handle]')) {
+      const was = before.get(node.dataset.handle);
+      if (!was) continue;
+
+      const now = node.getBoundingClientRect();
+      const dx = was.left - now.left;
+      const dy = was.top - now.top;
+      if (!dx && !dy) continue;
+
+      node.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+        { duration: 280, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' }
+      );
+    }
+  }
+
   // Positions are rewritten for the whole catalog on every move, so the order
   // is always fully explicit rather than half-alphabetical.
   function reorder(from, to) {
     if (from === to || from == null || to == null) return;
+
+    const before = cardRects();
 
     const list = [...state.products];
     const [moved] = list.splice(from, 1);
@@ -358,6 +396,14 @@
     state.products = list.map((piece, index) => ({ ...piece, position: index }));
     touch();
     renderGrid();
+
+    playFlip(before);
+
+    // A brief mark on the piece that moved, so it is obvious which one landed
+    // when several slide at once.
+    const landed = el.main.querySelector(`[data-handle="${CSS.escape(moved.handle)}"]`);
+    landed?.classList.add('just-moved');
+    landed?.addEventListener('animationend', () => landed.classList.remove('just-moved'), { once: true });
   }
 
   function cardIndex(node) {
