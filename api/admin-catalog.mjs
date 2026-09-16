@@ -12,6 +12,29 @@ import { readConfig, verifyToken, readCookie, COOKIE_NAME } from '../lib/session
 import { readCatalog, readDigest, writeCatalog } from '../lib/global-config.mjs';
 import { validateCatalog, catalogHealth } from '../lib/catalog.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
+import { list } from '@vercel/blob';
+
+// Photographs uploaded from a phone live in Blob rather than in assets/, so
+// the picker has to offer both. Newest first, because the one you just took is
+// the one you are looking for.
+//
+// A failure here is not fatal: the bundled photographs still work, and an
+// empty picker would be a worse answer than a slightly incomplete one.
+async function uploadedPhotos() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return [];
+
+  try {
+    const { blobs } = await list({ prefix: 'uploads/', limit: 1000 });
+
+    return blobs
+      .slice()
+      .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+      .map((blob) => blob.url);
+  } catch (error) {
+    console.error('[admin-catalog] could not list uploads:', error?.message);
+    return [];
+  }
+}
 
 function authorized(request) {
   const config = readConfig(process.env);
@@ -28,9 +51,10 @@ const UNAUTHORIZED = () => json(401, { error: 'Sign in first.' });
 /* -------------------------------------------------------------------- GET */
 
 async function handleGet() {
-  const [catalog, digest] = await Promise.all([
+  const [catalog, digest, uploads] = await Promise.all([
     readCatalog(process.env),
     readDigest(process.env),
+    uploadedPhotos(),
   ]);
 
   if (!catalog.ok) {
@@ -44,8 +68,8 @@ async function handleGet() {
     // Null rather than an error: a missing digest costs conflict detection on
     // the next save, which is worth degrading rather than blocking an edit.
     digest: digest.ok ? digest.digest : null,
-    assets: ASSETS,
-    health: catalogHealth(catalog.products, ASSETS),
+    assets: [...uploads, ...ASSETS],
+    health: catalogHealth(catalog.products, [...uploads, ...ASSETS]),
   });
 }
 

@@ -596,6 +596,123 @@
     `;
   }
 
+  /* -------------------------------------------------------- uploading */
+
+  // 1600px matches the 60 photographs already in the catalog, which were
+  // fetched at width=1600.
+  const MAX_DIMENSION = 1600;
+  const JPEG_QUALITY = 0.82;
+
+  // createImageBitmap handles far more than an <img> will, including HEIC on
+  // iOS where the system can decode it. The <img> path is the fallback for
+  // browsers without it.
+  async function decodeImage(file) {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        return await createImageBitmap(file);
+      } catch {
+        // Some formats decode only through an <img>; fall through.
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('This browser cannot read that image. Try a JPEG or PNG.'));
+      };
+      image.src = url;
+    });
+  }
+
+  // Resizing here rather than on the server is what makes uploading from a
+  // phone work at all: a raw photograph is 3-12 MB and Vercel caps a request
+  // body at 4.5 MB. It also converts HEIC to JPEG on the way through, which is
+  // why two photographs from the original catalog are missing.
+  async function resizePhoto(file) {
+    const source = await decodeImage(file);
+    const width = source.width ?? source.naturalWidth;
+    const height = source.height ?? source.naturalHeight;
+
+    if (!width || !height) throw new Error('That image has no dimensions.');
+
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+
+    const context = canvas.getContext('2d');
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    source.close?.();
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Could not re-encode that image.'))),
+        'image/jpeg',
+        JPEG_QUALITY
+      );
+    });
+  }
+
+  async function uploadOne(file) {
+    const resized = await resizePhoto(file);
+
+    const response = await fetch('/api/admin-upload', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: resized,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'The upload was refused.');
+
+    return data.url;
+  }
+
+  async function onUploadChosen(event) {
+    const input = event.target;
+    const files = Array.from(input.files ?? []);
+    if (!files.length) return;
+
+    const status = $('[data-upload-status]', el.picker);
+    const piece = byHandle(state.editing);
+    let done = 0;
+
+    const say = (text) => {
+      if (!status) return;
+      status.textContent = text;
+      status.hidden = false;
+    };
+
+    for (const file of files) {
+      say(`Adding photograph ${done + 1} of ${files.length}…`);
+
+      try {
+        const url = await uploadOne(file);
+        // Attach as it arrives, so a failure part-way through still keeps
+        // whatever already uploaded.
+        state.assets = [url, ...state.assets];
+        updatePiece(state.editing, { images: [...(piece.images ?? []), url] });
+        done += 1;
+      } catch (error) {
+        say(error.message);
+        renderPicker();
+        return;
+      }
+    }
+
+    input.value = '';   // so choosing the same file again still fires
+    say(`Added ${done} photograph${done === 1 ? '' : 's'}.`);
+    renderPicker();
+  }
+
   /* -------------------------------------------------------- image picker */
 
   function renderPicker() {
@@ -606,8 +723,15 @@
       <div class="picker__panel" role="dialog" aria-modal="true" aria-label="Choose a photograph">
         <div class="picker__head">
           <h2>Choose a photograph</h2>
-          <button class="btn btn-ghost" type="button" data-close-picker>Done</button>
+          <div class="picker__actions">
+            <label class="btn btn-primary picker__upload">
+              Upload photos
+              <input type="file" accept="image/*" multiple data-upload>
+            </label>
+            <button class="btn btn-ghost" type="button" data-close-picker>Done</button>
+          </div>
         </div>
+        <p class="picker__status" data-upload-status hidden role="status"></p>
         <div class="picker__grid">
           ${state.assets
             .map(
@@ -783,6 +907,9 @@
     el.main.addEventListener('drop', onDrop);
     el.main.addEventListener('dragend', onDragEnd);
     el.picker.addEventListener('click', onClick);
+    el.picker.addEventListener('change', (event) => {
+      if (event.target.closest('[data-upload]')) onUploadChosen(event);
+    });
     el.save.addEventListener('click', save);
     $('[data-discard]').addEventListener('click', () => {
       if (!window.confirm('Throw away every unsaved change?')) return;

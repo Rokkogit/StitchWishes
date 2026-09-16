@@ -966,3 +966,45 @@
   .tabs { padding-inline: var(--s2); }
   .tab { padding: 0.45rem 0.85rem; font-size: 0.62rem; }
 }
+
+/* --------------------------------------------------------- uploading ---- */
+
+.picker__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* A label wrapping a hidden input, so the file picker gets the same button as
+   everything else rather than the browser default. */
+.picker__upload {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.picker__upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+
+.picker__status {
+  margin: 0;
+  padding: 0.6rem var(--s3);
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(174, 226, 210, 0.3);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 560px) {
+  .picker__head { flex-wrap: wrap; }
+  .picker__head h2 { font-size: 0.95rem; }
+  .picker__actions { gap: 0.4rem; }
+  .picker__actions .btn { padding: 0.6rem 1rem; font-size: 0.62rem; }
+}

@@ -23,7 +23,10 @@ cd stitch-wishes-2050
 python -m http.server 4173 --bind 127.0.0.1
 ```
 
-Then visit <http://127.0.0.1:4173>. No build step, no dependencies.
+Then visit <http://127.0.0.1:4173>. No build step. The storefront falls back
+to its bundled catalog when it cannot reach the live one, so it works served
+this way — but /admin needs `vercel dev`, because static file serving cannot
+run functions.
 
 ## The catalog pipeline
 
@@ -54,19 +57,31 @@ Two things the generator handles:
 `products.js` is generated — edit `stitch-products.json` and re-run the
 generator rather than hand-editing it.
 
-## The admin gate
+## The admin
 
-`/admin` is a passphrase-gated screen. It is the only part of this repo with
-server-side code — three Vercel Functions in `api/`, which use Node built-ins
-only. No packages, no build step.
+`/admin` is a passphrase-gated panel for editing the catalog. **Edits go live
+in about ten seconds without a deploy.**
+
+One dependency, `@vercel/blob`, is used by the photo upload endpoint. Vercel
+installs it; the static site still has no build step. Everything else uses Node
+built-ins only.
 
 ```
-api/admin-login.mjs   POST { code }  -> sets the session cookie
-api/admin-logout.mjs  POST           -> clears it
-api/admin-session.mjs GET            -> { authed }
-lib/session.mjs       sign + verify sessions, compare the passphrase
-lib/http.mjs          shared response shaping
-tests/                node --test
+api/admin-login.mjs    POST { code }   -> sets the session cookie
+api/admin-logout.mjs   POST            -> clears it
+api/admin-session.mjs  GET             -> { authed }
+api/admin-catalog.mjs  GET  editor state · POST validated write
+api/admin-upload.mjs   POST a photo    -> stores it, returns a URL
+api/catalog.mjs        GET  public, CDN-cached, hidden pieces filtered
+
+lib/session.mjs        sign + verify sessions, compare the passphrase
+lib/catalog.mjs        validate, order, derive health
+lib/global-config.mjs  read + write the catalog store
+lib/upload.mjs         what may be uploaded
+lib/http.mjs           response shaping
+lib/assets-manifest.mjs  generated list of assets/, for the picker
+
+tests/                 node --test
 ```
 
 Two layout rules worth not relearning the hard way:
@@ -80,40 +95,76 @@ Two layout rules worth not relearning the hard way:
   the imports. Never add `lib/` to `.vercelignore` — that excludes it from the
   upload and breaks those imports.
 
+### Where the catalog lives
+
+`products.js` still ships with the site, but it is no longer what the
+storefront reads. The live catalog is one key in a **Vercel Global Config**
+store, which the admin writes and `/api/catalog` serves.
+
+```
+admin save ──PATCH──▶ Global Config ──▶ propagates in ~10s
+                            │
+storefront ──▶ /api/catalog ┘   falls back to the bundled products.js
+                                 if the store is unreachable or unseeded
+```
+
+The bundled copy is the fallback and the seed for an empty store, so the shop
+never renders blank. Global Config keeps 7 days of restorable backups.
+
+The first write to a store creates the key; Vercel answers `upsert` on a
+key that has never existed with `404 Edge Config Item not found`, so the
+write retries once as `create`.
+
 ### What it does and does not protect
 
 The passphrase is checked on the server and never reaches the browser. But
 `/admin`'s HTML is a public file — anyone can load the login screen, and that
 is fine. What the cookie protects is *actions*.
 
-**So: every admin operation added later must go through an `api/` route that
-verifies the session.** A panel that does its work purely in the browser would
-reduce this to decoration.
+**So: every admin operation must go through an `api/` route that verifies the
+session.** A panel that did its work purely in the browser would reduce this to
+decoration.
+
+Image paths are validated server-side against two shapes and nothing else: a
+single filename under `assets/`, or a URL on your own
+`*.public.blob.vercel-storage.com` host. The catalog is serialised into
+something every visitor executes, so an unchecked path there is script
+injection rather than a broken image.
+
+### Photographs
+
+Uploads are resized to 1600px and re-encoded as JPEG **in the browser**,
+before being sent. That is what makes uploading from a phone work: a raw
+photograph is 3–12 MB and Vercel caps a request body at 4.5 MB. It also
+converts HEIC to JPEG on the way through, which is why two photographs from
+the original Shopify catalog are missing — nothing could display them.
 
 ### Setup
 
-Two environment variables, in the Vercel dashboard under
+Environment variables, in the Vercel dashboard under
 **Settings → Environment Variables**, ticked for Production, Preview and
 Development:
 
-| Name | Value |
-|---|---|
-| `ADMIN_CODE` | The passphrase. **12 characters minimum** — logins are refused below that. |
-| `ADMIN_SESSION_SECRET` | 64 random hex characters (see below) |
+| Name | What it is | Where it comes from |
+|---|---|---|
+| `ADMIN_CODE` | The passphrase you type. **12 characters minimum** | You choose it |
+| `ADMIN_SESSION_SECRET` | Signs session cookies. 64 random hex chars | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `GLOBAL_CONFIG` | Connection string for the catalog store | Added automatically when you connect a Global Config store |
+| `VERCEL_API_TOKEN` | Writes to the store. Needs **Full Account** scope | Account Settings → Tokens |
+| `BLOB_READ_WRITE_TOKEN` | Stores uploaded photographs | Added automatically when you create a Blob store |
+| `VERCEL_TEAM_ID` | Only if the store belongs to a team | Team Settings → General |
 
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Two things worth knowing:
+Three things worth knowing:
 
 - Environment variable changes apply only to *new* deployments. Change a value
   and the live site keeps using the old one until you redeploy.
 - Rotating `ADMIN_SESSION_SECRET` invalidates every existing session. That is
   the "sign everyone out" button.
+- `VERCEL_API_TOKEN` expires. When it does, saving fails with a message that
+  says so rather than a generic error — but it is worth a calendar reminder.
 
-The 12-character floor is load-bearing. Serverless instances do not share
-memory, so per-instance attempt counters are not real rate limiting —
+The 12-character floor on `ADMIN_CODE` is load-bearing. Serverless instances do
+not share memory, so per-instance attempt counters are not real rate limiting —
 passphrase length is what actually stops brute force. Lowering it means adding
 a shared rate-limit store first.
 
@@ -137,11 +188,15 @@ Without `vercel dev` the page loads and says so rather than failing silently.
 ### Tests
 
 ```bash
-node --test "tests/*.test.mjs"
+npm test
 ```
 
-55 tests, no framework and no dependencies — Node's built-in runner. Keep the
-glob quoted; passing a bare directory (`node --test tests/`) fails on Windows.
+194 tests on Node's built-in runner, no test framework. Keep the glob quoted;
+passing a bare directory (`node --test tests/`) fails on Windows.
+
+`tests/real-catalog.test.mjs` validates the actual `products.js` on every run.
+It exists because a validation rule once rejected four live handles for
+containing underscores, which would have locked the shop out of its own admin.
 
 ## Notes
 
