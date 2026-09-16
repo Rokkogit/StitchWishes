@@ -14,6 +14,16 @@
   --alert: #a8456a;
 }
 
+/* The hidden attribute is a user-agent rule, [hidden] { display: none }, and
+   ANY author display declaration outranks it. Both .gate-wrap and .picker set
+   display, so hiding them did nothing at all: the gate kept its full 100vh and
+   pushed the workroom below the fold, which looked exactly like an editor that
+   had failed to render. Declare the intent once, loudly, rather than
+   remembering it at every toggle. */
+[hidden] {
+  display: none !important;
+}
+
 .admin {
   min-height: 100vh;
 }
