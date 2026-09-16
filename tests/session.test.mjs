@@ -21,17 +21,17 @@ import {
 
 test('readConfig accepts a valid secret and a long enough code', () => {
   const result = readConfig({
-    ADMIN_CODE: 'stitch-witch-hunny',
+    ADMIN_CODE: 'test-passphrase-fixture',
     ADMIN_SESSION_SECRET: 'a'.repeat(64),
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.code, 'stitch-witch-hunny');
+  assert.equal(result.code, 'test-passphrase-fixture');
   assert.equal(result.secret, 'a'.repeat(64));
 });
 
 test('readConfig fails when the session secret is missing', () => {
-  const result = readConfig({ ADMIN_CODE: 'stitch-witch-hunny' });
+  const result = readConfig({ ADMIN_CODE: 'test-passphrase-fixture' });
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'missing-secret');
@@ -39,7 +39,7 @@ test('readConfig fails when the session secret is missing', () => {
 
 test('readConfig fails when the session secret is empty', () => {
   const result = readConfig({
-    ADMIN_CODE: 'stitch-witch-hunny',
+    ADMIN_CODE: 'test-passphrase-fixture',
     ADMIN_SESSION_SECRET: '   ',
   });
 
@@ -77,7 +77,7 @@ test('readConfig accepts a code of exactly the minimum length', () => {
 
 test('readConfig never reports ok without also returning both values', () => {
   const result = readConfig({
-    ADMIN_CODE: 'stitch-witch-hunny',
+    ADMIN_CODE: 'test-passphrase-fixture',
     ADMIN_SESSION_SECRET: 'a'.repeat(64),
   });
 
@@ -94,15 +94,17 @@ test('readConfig on a completely empty environment fails closed', () => {
 
 /* -------------------------------------------------------------- checkCode */
 
-const CORRECT = 'stitch-witch-hunny';
+const CORRECT = 'test-passphrase-fixture';
 
 test('checkCode accepts the correct passphrase', () => {
   assert.equal(checkCode(CORRECT, CORRECT), true);
 });
 
 test('checkCode rejects a wrong passphrase of the same length', () => {
-  const wrong = 'stitch-witch-HUNNY';
+  // Derived from CORRECT so it stays the same length if the fixture changes.
+  const wrong = `x${CORRECT.slice(1)}`;
   assert.equal(wrong.length, CORRECT.length);
+  assert.notEqual(wrong, CORRECT);
 
   assert.equal(checkCode(wrong, CORRECT), false);
 });

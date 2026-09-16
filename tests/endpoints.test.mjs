@@ -8,7 +8,7 @@ import logout from '../api/admin-logout.mjs';
 import session from '../api/admin-session.mjs';
 import { createToken, COOKIE_NAME } from '../lib/session.mjs';
 
-const CODE = 'stitch-witch-hunny';
+const CODE = 'test-passphrase-fixture';
 const SECRET = 'f'.repeat(64);
 
 const saved = {};
@@ -52,7 +52,7 @@ test('login with the correct code returns 200 and sets a session cookie', async 
 });
 
 test('login with the wrong code returns 401 and sets no cookie', async () => {
-  const response = await login.fetch(postCode('wrong-passphrase-entirely'));
+  const response = await login.fetch(postCode('wrong-value-entirely'));
 
   assert.equal(response.status, 401);
   assert.equal(response.headers.get('set-cookie'), null);
@@ -126,7 +126,7 @@ test('login never reveals the configuration reason to the client', async () => {
 });
 
 test('login never echoes the correct code back', async () => {
-  const body = await (await login.fetch(postCode('wrong-passphrase'))).text();
+  const body = await (await login.fetch(postCode('wrong-value'))).text();
 
   assert.doesNotMatch(body, new RegExp(CODE));
 });
