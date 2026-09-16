@@ -15,12 +15,71 @@ function escapeHtml(value) {
 
 /* ---------------------------------------------------------------- products */
 
+function emptyMediaHtml(cls) {
+  return `<div class="${cls} card__media--empty">Photograph<br>coming soon</div>`;
+}
+
 function mediaHtml(product, modifier) {
   const cls = modifier || 'card__media';
-  if (!product.image) {
-    return `<div class="${cls} card__media--empty">Photograph<br>coming soon</div>`;
-  }
-  return `<div class="${cls}"><img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" loading="lazy"></div>`;
+  const images = product.images ?? [];
+  if (!images.length) return emptyMediaHtml(cls);
+
+  // The count tells you there is more to see before you open the piece —
+  // several products carry ten photographs.
+  const count =
+    images.length > 1
+      ? `<span class="card__count">${images.length} photos</span>`
+      : '';
+
+  return `
+    <div class="${cls}">
+      <img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" loading="lazy">
+      ${count}
+    </div>
+  `;
+}
+
+/* ---------------------------------------------------------------- gallery */
+
+// Every photograph the studio took of a piece, not just the first. Thumbnails
+// are buttons rather than divs so the gallery works from the keyboard.
+function galleryHtml(product) {
+  const images = product.images ?? [];
+  if (!images.length) return emptyMediaHtml('detail__media');
+
+  const main = `
+    <div class="detail__media">
+      <img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" data-gallery-main>
+    </div>
+  `;
+
+  if (images.length === 1) return main;
+
+  const thumbs = images
+    .map(
+      (src, index) => `
+      <button class="thumb${index === 0 ? ' is-active' : ''}" type="button"
+              data-thumb="${escapeHtml(src)}"
+              aria-label="Photograph ${index + 1} of ${images.length}">
+        <img src="${escapeHtml(src)}" alt="" loading="lazy">
+      </button>`
+    )
+    .join('');
+
+  return `${main}<div class="thumbs">${thumbs}</div>`;
+}
+
+function initGallery(root) {
+  const main = root.querySelector('[data-gallery-main]');
+  const thumbs = Array.from(root.querySelectorAll('[data-thumb]'));
+  if (!main || !thumbs.length) return;
+
+  thumbs.forEach((thumb) => {
+    thumb.addEventListener('click', () => {
+      main.src = thumb.dataset.thumb;
+      thumbs.forEach((other) => other.classList.toggle('is-active', other === thumb));
+    });
+  });
 }
 
 function cardHtml(product) {
@@ -196,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       document.title = `${product.title} — Stitch Wishess`;
       detail.innerHTML = `
-        ${mediaHtml(product, 'detail__media')}
+        <div class="gallery">${galleryHtml(product)}</div>
         <div>
           <p class="label">Stitch Wishess</p>
           <h1>${escapeHtml(product.title)}</h1>
@@ -205,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="btn btn-primary" type="button">Add to bag</button>
         </div>
       `;
+      initGallery(detail);
       renderGrid(document.querySelector('[data-related]'), pickRandom(products, 4, product.handle));
     }
   }

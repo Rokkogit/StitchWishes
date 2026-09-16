@@ -65,14 +65,26 @@ hollow when signed out, sewn and strung when signed in.
 
 ## Assets
 
-**All images are local.** `assets/` holds 62 images pulled from the Shopify CDN
-while it was still serving. The storefront itself is deactivated ("This store is
-currently unavailable"), so the CDN is no longer a safe dependency — nothing
-here hotlinks it. Images were fetched at `width=1600`, not full resolution.
+**All images are local.** `assets/` holds 64 files — 60 product photographs
+pulled from the Shopify CDN while it was still serving, plus the sky texture,
+the portrait and their two originals. The storefront itself is deactivated
+("This store is currently unavailable"), so the CDN is no longer a safe
+dependency — nothing here hotlinks it. Images were fetched at `width=1600`,
+not full resolution.
+
+Every one of those 60 photographs is shown. Each product carries an `images`
+array and the product page renders the full set as a gallery; the catalog card
+shows the first and a count.
+
+Two photographs from the source catalog are absent, both on *Blue Alien Beaded
+Pen Classics* (9 of 11): `FullSizeRender.heic` and `IMG-4441.heic`. HEIC is not
+a format browsers render, so they were never downloaded, and the dead CDN means
+they cannot be fetched now. Converting the originals to JPEG and dropping them
+in `assets/` would restore them.
 
 `products.js` is generated from `../stitch-products.json` by
-`generate-products.mjs`, then rewritten to point at `assets/`. Re-running the
-generator will restore the CDN URLs, so repoint them afterwards.
+`generate-products.mjs`. Re-running it is safe — it reads only from `assets/`
+and never emits a CDN URL.
 
 ## Out of scope
 

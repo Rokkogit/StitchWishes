@@ -37,10 +37,16 @@ node generate-products.mjs   # -> products.js
 
 Two things the generator handles:
 
-- **Image resolution.** It prefers a copy already sitting in that build's
-  `assets/` folder and falls back to the Shopify CDN only when there isn't
-  one. That is what lets the same generator serve both builds correctly, and
-  what keeps a re-run from quietly breaking the offline build.
+- **Image resolution.** Each product gets an `images` array holding *every*
+  photograph the catalog lists for it, not just the first — several products
+  carry ten. Anything without a local copy in `assets/` is dropped rather
+  than falling back to the Shopify CDN, because that store is deactivated and
+  a CDN URL is now a guaranteed broken image.
+
+  The two builds' generators have diverged as a result: `stitch-wishes-2050/`
+  emits `images` arrays from local files, while `stitch-wishes-modern/` still
+  emits a single CDN `image` per product. Only the 2050 generator is
+  maintained.
 - **Ordering.** Products are sorted alphabetically by title, which is what
   the live store's collection page uses ("Alphabetically, A-Z"), so the
   catalog order matches it.

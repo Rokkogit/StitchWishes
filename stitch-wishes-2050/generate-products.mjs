@@ -16,13 +16,16 @@ function stripHtml(html) {
     .trim();
 }
 
-// Prefer the copy already downloaded into assets/ so the build keeps working
-// offline. Falls back to the Shopify CDN only when this build has no local
-// file for that image, which is what keeps a re-run from breaking the page.
-function resolveImage(src) {
-  if (!src) return null;
-  const local = `assets/${basename(new URL(src).pathname)}`;
-  return existsSync(local) ? local : src;
+// Every photo the catalog lists, not just the first — products carry up to 11
+// and the site was showing one.
+//
+// Anything without a local copy is dropped rather than falling back to the
+// Shopify CDN: that store is deactivated, so a CDN URL is a guaranteed broken
+// image. Two photos are lost that way and cannot be recovered.
+function resolveImages(images) {
+  return (images ?? [])
+    .map((image) => `assets/${basename(new URL(image.src).pathname)}`)
+    .filter((path) => existsSync(path));
 }
 
 const products = raw.products.map((p) => {
@@ -31,7 +34,7 @@ const products = raw.products.map((p) => {
     handle: p.handle,
     title: p.title,
     price: variant ? Number(variant.price) : null,
-    image: resolveImage(p.images?.[0]?.src),
+    images: resolveImages(p.images),
     description: stripHtml(p.body_html ?? ''),
   };
 });
@@ -48,9 +51,9 @@ window.STITCH_PRODUCTS = ${JSON.stringify(products, null, 2)};
 
 writeFileSync('products.js', out, 'utf-8');
 
-const local = products.filter((p) => p.image?.startsWith('assets/')).length;
-const remote = products.filter((p) => p.image?.startsWith('http')).length;
+const photos = products.reduce((total, p) => total + p.images.length, 0);
+const without = products.filter((p) => p.images.length === 0).length;
 console.log(
-  `Wrote products.js with ${products.length} products ` +
-    `(${local} local images, ${remote} remote, ${products.length - local - remote} without).`
+  `Wrote products.js with ${products.length} products and ${photos} photos ` +
+    `(${without} product${without === 1 ? '' : 's'} with no photograph).`
 );
