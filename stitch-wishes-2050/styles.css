@@ -650,9 +650,12 @@ main {
   box-shadow: 0 26px 50px -26px rgba(13, 42, 49, 0.34);
 }
 
+/* 3:4 rather than 4:5. Cards stay cropped so the grid holds a clean line, but
+   the commonest photograph in this catalog is exactly 3:4 — at this ratio
+   those lose nothing at all, where 4:5 was shaving them. */
 .card__media {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 3 / 4;
   border-radius: calc(var(--radius) - 8px);
   overflow: hidden;
   background: linear-gradient(150deg, var(--aurora), var(--lilac));
@@ -811,11 +814,17 @@ main {
   padding: 10px;
 }
 
+/* contain, not cover. 85% of this catalog is portrait and the pens run as
+   narrow as 0.51 — a square crop was cutting half the pen away. The frame is
+   2:3 because that is the median shape here, so most photographs sit in it
+   with little letterboxing, and none of them lose anything.
+   A fixed ratio keeps the page from jumping as you step through the strip. */
 .detail__media img {
   border-radius: calc(var(--radius) - 8px);
+  display: block;
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
 }
 
 /* Gallery — every photograph of a piece, not just the first.
@@ -839,11 +848,14 @@ main {
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
+/* Also contain: a square crop of a pen photograph shows the middle handful of
+   beads, which made every thumbnail in a strip of ten look identical. Whole
+   photographs are what make them tellable apart. */
 .thumb img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .thumb:hover {
