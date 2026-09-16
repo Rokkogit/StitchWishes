@@ -111,6 +111,12 @@
       }
 
       const data = await response.json();
+      console.info('[admin-catalog] loaded', {
+        products: data.products?.length,
+        assets: data.assets?.length,
+        seeded: data.seeded,
+        digest: data.digest,
+      });
       state.assets = data.assets ?? [];
       state.health = data.health ?? null;
       state.digest = data.digest;
@@ -130,8 +136,10 @@
       if (!data.seeded) offerSeed();
 
       render();
-    } catch {
-      fail('Cannot reach the catalog service.');
+    } catch (error) {
+      // Distinguish a network failure from a crash while handling the reply.
+      // Reporting both as "cannot reach" sent me hunting the wrong layer.
+      renderFailure('the catalog load', error);
     } finally {
       setBusy(false);
     }
@@ -231,10 +239,33 @@
 
   /* --------------------------------------------------------------- views */
 
+  // A blank panel that explains nothing is worse than an error. Anything that
+  // throws while drawing gets shown, in the page, with the detail needed to
+  // act on it.
+  function renderFailure(where, error) {
+    const detail = error && error.stack ? error.stack : String(error);
+    console.error(`[admin-catalog] ${where}`, error);
+
+    if (!el.main) return;
+    el.main.innerHTML = `
+      <div class="admin-head"><div>
+        <h1>The editor could not draw</h1>
+        <p class="admin-sub">Something failed while rendering ${escapeHtml(where)}.
+           Your saved catalog is untouched.</p>
+      </div></div>
+      <pre class="crash">${escapeHtml(detail)}</pre>
+      <button class="btn btn-ghost" type="button" onclick="location.reload()">Reload</button>
+    `;
+  }
+
   function render() {
-    renderStatus();
-    if (state.view === 'piece' && byHandle(state.editing)) renderPiece();
-    else renderGrid();
+    try {
+      renderStatus();
+      if (state.view === 'piece' && byHandle(state.editing)) renderPiece();
+      else renderGrid();
+    } catch (error) {
+      renderFailure(state.view === 'piece' ? 'a piece' : 'the catalog', error);
+    }
   }
 
   const showGrid = () => {
@@ -546,6 +577,14 @@
   /* ---------------------------------------------------------------- boot */
 
   function mount() {
+    try {
+      wire();
+    } catch (error) {
+      renderFailure('the editor shell', error);
+    }
+  }
+
+  function wire() {
     el.main = $('[data-catalog]');
     el.bar = $('[data-savebar]');
     el.barText = $('[data-savebar-text]');

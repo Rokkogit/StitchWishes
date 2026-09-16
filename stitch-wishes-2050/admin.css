@@ -664,3 +664,20 @@
   .card--add,
   .picker__item { transition: none; }
 }
+
+/* Shown when the editor itself fails to draw. A blank panel explains nothing;
+   this puts the stack where the person who hit it can read it. */
+.crash {
+  margin: 0 0 var(--s3);
+  padding: var(--s2);
+  border: 1px solid rgba(168, 69, 106, 0.3);
+  border-radius: 12px;
+  background: rgba(168, 69, 106, 0.08);
+  color: var(--alert);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
