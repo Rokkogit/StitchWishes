@@ -21,6 +21,7 @@
     filter: 'all',
     picking: false,
     busy: false,
+    dragFrom: null,   // index being dragged, or null
   };
 
   const el = {};
@@ -291,7 +292,24 @@
     }
   }
 
-  function cardHtml(piece) {
+  // Mirrors catalogHealth in lib/catalog.mjs. Duplicated deliberately: lib/
+  // sits outside the static output directory, so the browser cannot import it,
+  // and the numbers have to describe the draft you are editing rather than the
+  // last saved state. Keep the two in step.
+  function draftHealth() {
+    const list = state.products;
+    const used = new Set(list.flatMap((p) => p.images ?? []));
+
+    return {
+      total: list.length,
+      hidden: list.filter((p) => p.hidden === true).length,
+      noPhoto: list.filter((p) => !(p.images?.length > 0)).length,
+      noPrice: list.filter((p) => p.price == null).length,
+      unusedImages: state.assets.filter((path) => !used.has(path)),
+    };
+  }
+
+  function cardHtml(piece, index) {
     const photo = piece.images?.[0];
     const media = photo
       ? `<div class="card__media"><img src="${escapeHtml(photo)}" alt="" loading="lazy">
@@ -305,22 +323,97 @@
       piece.price == null ? '<span class="flag">Needs a price</span>' : '',
     ].join('');
 
+    // Only draggable in the unfiltered view: in a filtered one the visible
+    // positions do not correspond to positions in the catalog, so a drop would
+    // land somewhere other than where it looked.
+    const canDrag = state.filter === 'all';
+
     return `
-      <button class="card admin-card${piece.hidden ? ' is-hidden' : ''}" type="button"
-              data-open="${escapeHtml(piece.handle)}">
-        ${media}
-        <div class="card__body">
-          <h3 class="card__title">${escapeHtml(piece.title)}</h3>
-          <p class="card__price">${escapeHtml(money(piece.price))}</p>
-          ${flags ? `<div class="flags">${flags}</div>` : ''}
-        </div>
-      </button>
+      <div class="card admin-card${piece.hidden ? ' is-hidden' : ''}"
+           ${canDrag ? 'draggable="true"' : ''} data-index="${index}">
+        <button class="admin-card__open" type="button" data-open="${escapeHtml(piece.handle)}">
+          ${media}
+          <div class="card__body">
+            <h3 class="card__title">${escapeHtml(piece.title)}</h3>
+            <p class="card__price">${escapeHtml(money(piece.price))}</p>
+            ${flags ? `<div class="flags">${flags}</div>` : ''}
+          </div>
+        </button>
+        ${canDrag ? '<span class="admin-card__grip" aria-hidden="true">drag to reorder</span>' : ''}
+      </div>
     `;
   }
 
+  /* ------------------------------------------------------------ reordering */
+
+  // Positions are rewritten for the whole catalog on every move, so the order
+  // is always fully explicit rather than half-alphabetical.
+  function reorder(from, to) {
+    if (from === to || from == null || to == null) return;
+
+    const list = [...state.products];
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+
+    state.products = list.map((piece, index) => ({ ...piece, position: index }));
+    touch();
+    renderGrid();
+  }
+
+  function cardIndex(node) {
+    const card = node?.closest?.('[data-index]');
+    return card ? Number(card.dataset.index) : null;
+  }
+
+  function onDragStart(event) {
+    const index = cardIndex(event.target);
+    if (index == null) return;
+
+    state.dragFrom = index;
+    event.dataTransfer.effectAllowed = 'move';
+    // Firefox refuses to start a drag unless something is set.
+    event.dataTransfer.setData('text/plain', String(index));
+    event.target.closest('[data-index]')?.classList.add('is-dragging');
+  }
+
+  function onDragOver(event) {
+    if (state.dragFrom == null) return;
+    event.preventDefault();
+
+    const card = event.target.closest?.('[data-index]');
+    for (const other of el.main.querySelectorAll('.is-over')) other.classList.remove('is-over');
+    if (card && Number(card.dataset.index) !== state.dragFrom) card.classList.add('is-over');
+  }
+
+  function onDrop(event) {
+    if (state.dragFrom == null) return;
+    event.preventDefault();
+
+    const to = cardIndex(event.target);
+    const from = state.dragFrom;
+    state.dragFrom = null;
+
+    if (to != null) reorder(from, to);
+  }
+
+  function onDragEnd() {
+    state.dragFrom = null;
+    for (const node of el.main.querySelectorAll('.is-dragging, .is-over')) {
+      node.classList.remove('is-dragging', 'is-over');
+    }
+  }
+
   function renderGrid() {
-    const shown = state.products.filter(matchesFilter);
-    const h = state.health;
+    const h = draftHealth();
+    const filtering = state.filter !== 'all';
+
+    // Indices are into state.products, not into the filtered view, so a drop
+    // moves the piece you actually dragged.
+    const cards = state.products
+      .map((piece, index) => ({ piece, index }))
+      .filter(({ piece }) => matchesFilter(piece))
+      .map(({ piece, index }) => cardHtml(piece, index))
+      .join('');
 
     el.main.innerHTML = `
       <div class="admin-head">
@@ -328,12 +421,13 @@
           <h1>The catalog</h1>
           <p class="admin-sub">${state.products.length} pieces. Changes go live about ten seconds after you save.</p>
         </div>
-        ${h ? `<dl class="stats">
+        <dl class="stats">
           <div><dt>Pieces</dt><dd>${h.total}</dd></div>
           <div><dt>No photo</dt><dd>${h.noPhoto}</dd></div>
           <div><dt>No price</dt><dd>${h.noPrice}</dd></div>
-          <div><dt>Unused images</dt><dd>${h.unusedImages?.length ?? 0}</dd></div>
-        </dl>` : ''}
+          <div><dt>Hidden</dt><dd>${h.hidden}</dd></div>
+          <div><dt>Unused images</dt><dd>${h.unusedImages.length}</dd></div>
+        </dl>
       </div>
 
       <div class="filters" role="group" aria-label="Filter pieces">
@@ -341,14 +435,15 @@
           .map(([key, label]) =>
             `<button class="chip${state.filter === key ? ' is-on' : ''}" type="button" data-filter="${key}">${label}</button>`)
           .join('')}
+        ${filtering ? '<span class="filters__note">Showing all pieces lets you drag to reorder</span>' : ''}
       </div>
 
-      <div class="grid">
-        ${shown.map(cardHtml).join('')}
+      <div class="grid" data-grid>
         <button class="card card--add" type="button" data-add>
           <span class="card--add__plus" aria-hidden="true">+</span>
           <span>Add a piece</span>
         </button>
+        ${cards}
       </div>
     `;
   }
@@ -595,6 +690,10 @@
     el.main.addEventListener('click', onClick);
     el.main.addEventListener('input', onInput);
     el.main.addEventListener('change', onChange);
+    el.main.addEventListener('dragstart', onDragStart);
+    el.main.addEventListener('dragover', onDragOver);
+    el.main.addEventListener('drop', onDrop);
+    el.main.addEventListener('dragend', onDragEnd);
     el.picker.addEventListener('click', onClick);
     el.save.addEventListener('click', save);
     $('[data-discard]').addEventListener('click', () => {

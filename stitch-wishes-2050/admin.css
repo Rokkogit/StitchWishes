@@ -691,3 +691,74 @@
   word-break: break-word;
   overflow-x: auto;
 }
+
+/* ------------------------------------------------------------- reordering */
+
+/* The card is now the drag handle and holds a button inside it, rather than
+   being the button. A draggable button fights the browser: the press that
+   starts a drag is also the press that fires a click. */
+.admin-card {
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  cursor: grab;
+}
+
+.admin-card[draggable="true"]:active { cursor: grabbing; }
+
+.admin-card__open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 0;
+  padding: 10px 10px 1.1rem;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Reordering is invisible until you try it, so the card says so on hover. */
+.admin-card__grip {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(13, 42, 49, 0.62);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.admin-card:hover .admin-card__grip { opacity: 1; }
+
+.admin-card.is-dragging { opacity: 0.35; }
+
+/* Where it will land. */
+.admin-card.is-over {
+  border-color: var(--aurora);
+  box-shadow: 0 0 0 3px rgba(143, 212, 230, 0.35);
+}
+
+.filters__note {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Add sits first in the grid, so it is the first thing in reading order
+   rather than something to hunt for past fifteen cards. */
+.card--add { order: -1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-card__grip { transition: none; }
+}
