@@ -45,6 +45,7 @@ export default {
         // silently showing a smaller cart than the one that was there.
         problems,
         subtotal: totals.subtotal,
+        tax: totals.tax,
         shipping: totals.shipping,
         fees: totals.fees,
         total: totals.total,

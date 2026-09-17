@@ -229,3 +229,110 @@ test('an empty cart costs nothing, not the price of shipping', () => {
   assert.equal(total.fees, 0);
   assert.deepEqual(total.lines, []);
 });
+
+/* ------------------------------------------------------------------ tax */
+// Tax is a percentage, not a fee. A flat amount would undercharge a $4
+// keychain and overcharge a $30 canvas, and she carries the difference.
+
+const taxed = (rate, over = {}) => ({
+  shipping: { label: 'Shipping', amount: 5, enabled: true },
+  fees: [],
+  tax: { label: 'Sales tax', rate, enabled: true, includeShipping: false, ...over },
+});
+
+test('tax is a percentage of what the pieces cost', () => {
+  const total = orderTotal([{ price: 100, quantity: 1 }], taxed(9.5));
+
+  assert.equal(total.tax, 9.5);
+  assert.equal(total.total, 100 + 5 + 9.5);
+});
+
+test('tax scales with the order, unlike a flat fee', () => {
+  const small = orderTotal([{ price: 4, quantity: 1 }], taxed(10));
+  const large = orderTotal([{ price: 30, quantity: 1 }], taxed(10));
+
+  assert.equal(small.tax, 0.4);
+  assert.equal(large.tax, 3);
+});
+
+test('tax rounds to whole cents', () => {
+  const total = orderTotal([{ price: 12.99, quantity: 1 }], taxed(9.5));
+
+  assert.equal(total.tax, 1.23);   // 12.99 * 0.095 = 1.23405
+});
+
+test('tax is off unless switched on', () => {
+  const total = orderTotal([{ price: 100, quantity: 1 }], taxed(9.5, { enabled: false }));
+
+  assert.equal(total.tax, 0);
+  assert.equal(total.total, 105);
+});
+
+// Whether shipping is taxable varies by state, so it is a decision rather
+// than a guess baked into the code.
+test('shipping is taxed only when asked for', () => {
+  const without = orderTotal([{ price: 100, quantity: 1 }], taxed(10));
+  const with_ = orderTotal([{ price: 100, quantity: 1 }], taxed(10, { includeShipping: true }));
+
+  assert.equal(without.tax, 10);
+  assert.equal(with_.tax, 10.5);
+});
+
+test('tax appears as its own line, showing the rate', () => {
+  const total = orderTotal([{ price: 100, quantity: 1 }], taxed(9.5));
+  const line = total.lines.find((l) => /tax/i.test(l.label));
+
+  assert.ok(line, 'tax must be visible to the customer, not folded into the total');
+  assert.match(line.label, /9\.5/);
+});
+
+test('an empty cart is not taxed', () => {
+  assert.equal(orderTotal([], taxed(9.5)).tax, 0);
+});
+
+test('a zero rate adds no line', () => {
+  const total = orderTotal([{ price: 100, quantity: 1 }], taxed(0));
+
+  assert.equal(total.tax, 0);
+  assert.ok(!total.lines.some((l) => /tax/i.test(l.label)));
+});
+
+test('settings with no tax at all still work', () => {
+  const total = orderTotal([{ price: 100, quantity: 1 }], { shipping: { label: 'S', amount: 0, enabled: false }, fees: [] });
+
+  assert.equal(total.tax, 0);
+});
+
+/* ------------------------------------------------------- tax validation */
+
+const withTax = (tax) => validateSettings({ shipping: DEFAULT_SETTINGS.shipping, fees: [], tax });
+
+test('a sensible rate is accepted', () => {
+  const result = withTax({ label: 'Sales tax', rate: 9.5, enabled: true });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.tax.rate, 9.5);
+});
+
+// The typo this catches: 950 meant as 9.50.
+test('a rate above the cap is refused', () => {
+  assert.equal(withTax({ label: 'Sales tax', rate: 950, enabled: true }).ok, false);
+});
+
+test('a negative rate is refused', () => {
+  assert.equal(withTax({ label: 'Sales tax', rate: -1, enabled: true }).ok, false);
+});
+
+test('a non-numeric rate is refused', () => {
+  for (const bad of ['lots', NaN, Infinity, {}]) {
+    assert.equal(withTax({ label: 'Sales tax', rate: bad, enabled: true }).ok, false, String(bad));
+  }
+});
+
+test('settings without tax default to none, switched off', () => {
+  const result = validateSettings({ shipping: DEFAULT_SETTINGS.shipping, fees: [] });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.tax.enabled, false);
+  assert.equal(result.value.tax.rate, 0);
+});

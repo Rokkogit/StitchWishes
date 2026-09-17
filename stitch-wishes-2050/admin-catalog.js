@@ -12,7 +12,7 @@
 
   const state = {
     products: [],      // the working copy
-    settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [] },
+    settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [], tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false } },
     saved: '',         // JSON of the last known server state, for dirty checks
     digest: null,
     assets: [],
@@ -919,18 +919,29 @@
   // Every charge here is applied to every order, so the preview is not
   // decoration: it is the only place she sees the effect of a change before
   // a customer does.
-  function previewTotal(example) {
+  // Mirrors orderTotal in lib/settings.mjs, in cents for the same reason: the
+  // preview has to agree with what the server will charge, or it is worse than
+  // no preview. The server remains the authority; this only shows its answer
+  // before a save.
+  function previewParts(example) {
     const s = state.settings;
-    let total = example;
+    const c = (v) => Math.round((Number(v) || 0) * 100);
 
-    if (s.shipping?.enabled !== false) total += Number(s.shipping?.amount) || 0;
-    for (const fee of s.fees ?? []) {
-      if (fee.enabled === false) continue;
-      total += Number(fee.amount) || 0;
-    }
+    const shipping = s.shipping?.enabled === false ? 0 : c(s.shipping?.amount);
+    const fees = (s.fees ?? []).reduce(
+      (sum, fee) => sum + (fee.enabled === false ? 0 : c(fee.amount)),
+      0
+    );
 
-    return total;
+    const t = s.tax ?? {};
+    const base = c(example) + (t.includeShipping ? shipping : 0);
+    const tax = t.enabled && Number(t.rate) > 0 ? Math.round((base * Number(t.rate)) / 100) : 0;
+
+    const cents = c(example) + shipping + fees + tax;
+    return { tax: tax / 100, total: cents / 100 };
   }
+
+  const previewTotal = (example) => previewParts(example).total;
 
   function chargeRow(charge, kind, index) {
     const id = kind === 'shipping' ? 'shipping' : `fee-${index}`;
@@ -965,6 +976,7 @@
 
   function renderCheckout() {
     const s = state.settings;
+    const t = s.tax ?? { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false };
     const example = 12.99;
 
     el.checkoutPanel.innerHTML = `
@@ -988,18 +1000,60 @@
         <p class="hint">Each fee is its own line at checkout, so a customer sees what they are paying for.</p>
       </section>
 
+      <section class="charges">
+        <p class="label">Sales tax</p>
+
+        <div class="charge${t.enabled ? '' : ' is-off'}" data-charge="tax" data-charge-index="0">
+          <label class="toggle charge__on">
+            <input type="checkbox" data-charge-field="enabled" ${t.enabled ? 'checked' : ''}>
+            <span class="sr-only">Charge tax</span>
+          </label>
+
+          <input class="field charge__label" value="${escapeHtml(t.label ?? 'Sales tax')}"
+                 aria-label="Name" data-charge-field="label">
+
+          <div class="charge__amount">
+            <input class="field field--mono" inputmode="decimal"
+                   value="${escapeHtml(t.rate ?? 0)}"
+                   aria-label="Rate" data-charge-field="rate">
+            <span aria-hidden="true">%</span>
+          </div>
+
+          <span class="charge__drop" aria-hidden="true"></span>
+        </div>
+
+        <label class="toggle charges__sub">
+          <input type="checkbox" data-charge="tax" data-charge-field="includeShipping"
+                 ${t.includeShipping ? 'checked' : ''}>
+          <span>Tax the shipping too</span>
+        </label>
+
+        <p class="hint">
+          A percentage of the order, not a flat amount &mdash; so it scales with
+          what someone buys. Whether shipping is taxable varies by state, which
+          is why that is a switch rather than an assumption.
+        </p>
+        <p class="hint hint--warn">
+          What you are required to collect, and from whom, is not something this
+          panel can know. Confirm the rate with whoever does your taxes.
+        </p>
+      </section>
+
       <section class="charges preview">
-        <p class="label">On a ${dollars(example)} piece</p>
+        <p class="label">On a $${dollars(example)} piece</p>
         <dl class="preview__lines">
-          <div><dt>The piece</dt><dd>${dollars(example)}</dd></div>
+          <div><dt>The piece</dt><dd>$${dollars(example)}</dd></div>
           ${s.shipping?.enabled !== false && (Number(s.shipping?.amount) || 0) > 0
-            ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>${dollars(s.shipping.amount)}</dd></div>`
+            ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>$${dollars(s.shipping.amount)}</dd></div>`
             : ''}
           ${(s.fees ?? [])
             .filter((fee) => fee.enabled !== false && (Number(fee.amount) || 0) > 0)
-            .map((fee) => `<div><dt>${escapeHtml(fee.label || 'Fee')}</dt><dd>${dollars(fee.amount)}</dd></div>`)
+            .map((fee) => `<div><dt>${escapeHtml(fee.label || 'Fee')}</dt><dd>$${dollars(fee.amount)}</dd></div>`)
             .join('')}
-          <div class="preview__total"><dt>Customer pays</dt><dd>${dollars(previewTotal(example))}</dd></div>
+          ${previewParts(example).tax > 0
+            ? `<div><dt>${escapeHtml(t.label || 'Sales tax')} (${Number(t.rate)}%)</dt><dd>$${dollars(previewParts(example).tax)}</dd></div>`
+            : ''}
+          <div class="preview__total"><dt>Customer pays</dt><dd>$${dollars(previewTotal(example))}</dd></div>
         </dl>
       </section>
     `;
@@ -1017,19 +1071,22 @@
     const target =
       kind === 'shipping'
         ? (state.settings.shipping ??= { label: 'Shipping', amount: 0, enabled: false })
-        : state.settings.fees[index];
+        : kind === 'tax'
+          ? (state.settings.tax ??= { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false })
+          : state.settings.fees[index];
 
     if (!target) return;
 
-    if (name === 'enabled') target.enabled = field.checked;
-    else if (name === 'amount') target.amount = field.value.trim() === '' ? 0 : Number(field.value);
-    else target[name] = field.value;
+    if (name === 'enabled' || name === 'includeShipping') target[name] = field.checked;
+    else if (name === 'amount' || name === 'rate') {
+      target[name] = field.value.trim() === '' ? 0 : Number(field.value);
+    } else target[name] = field.value;
 
     touch();
 
     // Redrawing on every keystroke would move the caret. The preview is
     // refreshed on blur instead, and on the toggles, which cannot be typed in.
-    if (name === 'enabled') renderCheckout();
+    if (name === 'enabled' || name === 'includeShipping') renderCheckout();
   }
 
   function onCheckoutClick(event) {

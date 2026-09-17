@@ -1117,3 +1117,11 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
   .charge__amount { grid-area: amt; }
   .charge__drop { grid-area: drop; }
 }
+
+.charges__sub {
+  margin: 0.2rem 0 0.6rem 0.2rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.hint--warn { color: var(--alert); }
