@@ -145,3 +145,118 @@ test('a piece with no photograph still resolves', () => {
   assert.equal(result.items.length, 1);
   assert.equal(result.items[0].image, null);
 });
+
+/* ------------------------------------------------------ picking a design */
+// A design is chosen by photograph. The cart carries only its id; the price,
+// the stock and the name all come from the catalog.
+
+const withDesigns = () => [
+  {
+    handle: 'signs',
+    title: 'Metal Sign',
+    price: 16.99,
+    images: ['assets/a.jpg'],
+    hidden: false,
+    stock: null,
+    designs: {
+      label: 'Design',
+      options: [
+        { id: 'a', name: 'Cute Trouble', image: 'assets/a.jpg', price: null, stock: null },
+        { id: 'b', name: 'Dark Side', image: 'assets/b.jpg', price: 13.99, stock: null },
+        { id: 'gone', name: 'Sold Out One', image: 'assets/c.jpg', price: null, stock: 0 },
+      ],
+    },
+    choices: [
+      { id: 'scent', label: 'Scent', values: [{ id: 'p', label: 'Pineapple' }, { id: 'd', label: 'Dark Side' }] },
+    ],
+  },
+];
+
+test('a chosen design is resolved and named', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1, design: 'a' }], withDesigns());
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].designName, 'Cute Trouble');
+});
+
+test('a design with its own price is charged that price', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1, design: 'b' }], withDesigns());
+
+  assert.equal(result.items[0].price, 13.99);
+});
+
+test('a design without its own price inherits the piece price', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1, design: 'a' }], withDesigns());
+
+  assert.equal(result.items[0].price, 16.99);
+});
+
+// The point of per-design stock: one design going does not take the listing.
+test('a sold out design cannot be bought while its siblings can', () => {
+  const result = resolveCart(
+    [{ handle: 'signs', quantity: 1, design: 'gone' }, { handle: 'signs', quantity: 1, design: 'a' }],
+    withDesigns()
+  );
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].designName, 'Cute Trouble');
+  assert.ok(result.problems.some((p) => /sold out/i.test(p.message)));
+});
+
+test('a piece with designs cannot be bought without picking one', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1 }], withDesigns());
+
+  assert.equal(result.items.length, 0);
+  assert.match(result.problems[0].message, /design|choose|pick/i);
+});
+
+test('an unknown design id is refused rather than falling back', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1, design: 'nope' }], withDesigns());
+
+  assert.equal(result.items.length, 0);
+});
+
+test('two different designs of the same piece are separate lines', () => {
+  const result = resolveCart(
+    [{ handle: 'signs', quantity: 1, design: 'a' }, { handle: 'signs', quantity: 2, design: 'b' }],
+    withDesigns()
+  );
+
+  assert.equal(result.items.length, 2);
+  assert.equal(result.items.find((i) => i.design === 'b').quantity, 2);
+});
+
+test('the same design listed twice is merged', () => {
+  const result = resolveCart(
+    [{ handle: 'signs', quantity: 1, design: 'a' }, { handle: 'signs', quantity: 2, design: 'a' }],
+    withDesigns()
+  );
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].quantity, 3);
+});
+
+test('a chosen scent is recorded so the piece can be made correctly', () => {
+  const result = resolveCart(
+    [{ handle: 'signs', quantity: 1, design: 'a', choices: { scent: 'p' } }],
+    withDesigns()
+  );
+
+  assert.deepEqual(result.items[0].choices, [{ label: 'Scent', value: 'Pineapple' }]);
+});
+
+test('an unknown scent is dropped rather than recorded as nonsense', () => {
+  const result = resolveCart(
+    [{ handle: 'signs', quantity: 1, design: 'a', choices: { scent: 'nope' } }],
+    withDesigns()
+  );
+
+  assert.equal(result.items.length, 1);
+  assert.deepEqual(result.items[0].choices, []);
+});
+
+test('the design photograph is what the bag shows', () => {
+  const result = resolveCart([{ handle: 'signs', quantity: 1, design: 'b' }], withDesigns());
+
+  assert.equal(result.items[0].image, 'assets/b.jpg');
+});

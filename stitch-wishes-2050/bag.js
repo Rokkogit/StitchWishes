@@ -59,11 +59,16 @@
   }
 
   function reconcile(result) {
-    const allowed = new Map(result.items.map((item) => [item.handle, item.quantity]));
+    // Keyed by piece and design together, because two designs of the same
+    // sign are two different lines.
+    const key = (handle, design) => `${handle}|${design ?? ''}`;
+    const allowed = new Map(result.items.map((item) => [key(item.handle, item.design), item.quantity]));
 
     for (const line of window.StitchCart.read()) {
-      const permitted = allowed.get(line.handle) ?? 0;
-      if (permitted !== line.quantity) window.StitchCart.setQuantity(line.handle, permitted);
+      const permitted = allowed.get(key(line.handle, line.design)) ?? 0;
+      if (permitted !== line.quantity) {
+        window.StitchCart.setQuantity(line.handle, permitted, line.design ?? null);
+      }
     }
   }
 
@@ -96,6 +101,18 @@
       ? `<div class="bag-item__media"><img src="${escapeHtml(item.image)}" alt="" loading="lazy"></div>`
       : `<div class="bag-item__media bag-item__media--empty"></div>`;
 
+    // Which design, and any choices made — so the bag says exactly what is
+    // being ordered rather than just which listing it came from.
+    const variant = [
+      item.designName ? escapeHtml(item.designName) : '',
+      ...(item.choices ?? []).map((c) => `${escapeHtml(c.label)}: ${escapeHtml(c.value)}`),
+    ]
+      .filter(Boolean)
+      .map((line) => `<p class="bag-item__variant">${line}</p>`)
+      .join('');
+
+    const design = escapeHtml(item.design ?? '');
+
     return `
       <li class="bag-item">
         ${media}
@@ -103,17 +120,18 @@
           <a class="bag-item__title" href="product.html?handle=${encodeURIComponent(item.handle)}">
             ${escapeHtml(item.title)}
           </a>
+          ${variant}
           <p class="bag-item__price">${money(item.price)} each</p>
         </div>
 
         <div class="stepper" role="group" aria-label="How many">
-          <button type="button" data-less="${escapeHtml(item.handle)}" aria-label="One fewer">&minus;</button>
+          <button type="button" data-less="${escapeHtml(item.handle)}" data-design="${design}" aria-label="One fewer">&minus;</button>
           <span>${item.quantity}</span>
-          <button type="button" data-more="${escapeHtml(item.handle)}" aria-label="One more">+</button>
+          <button type="button" data-more="${escapeHtml(item.handle)}" data-design="${design}" aria-label="One more">+</button>
         </div>
 
         <p class="bag-item__line">${money(item.price * item.quantity)}</p>
-        <button class="bag-item__drop" type="button" data-drop="${escapeHtml(item.handle)}"
+        <button class="bag-item__drop" type="button" data-drop="${escapeHtml(item.handle)}" data-design="${design}"
                 aria-label="Remove ${escapeHtml(item.title)}">&times;</button>
       </li>
     `;
@@ -163,23 +181,33 @@
   async function onClick(event) {
     const hit = (attr) => event.target.closest(`[${attr}]`);
 
+    // An empty data-design means the piece has no designs, which is a real
+    // value rather than a missing one.
+    const designOf = (node) => node.dataset.design || null;
+
     const more = hit('data-more');
     if (more) {
-      window.StitchCart.add(more.dataset.more, 1);
+      const design = designOf(more);
+      const line = window.StitchCart.read().find(
+        (l) => l.handle === more.dataset.more && (l.design ?? null) === design
+      );
+      window.StitchCart.setQuantity(more.dataset.more, (line?.quantity ?? 0) + 1, design);
       return price();
     }
 
     const less = hit('data-less');
     if (less) {
-      const handle = less.dataset.less;
-      const line = window.StitchCart.read().find((l) => l.handle === handle);
-      window.StitchCart.setQuantity(handle, (line?.quantity ?? 1) - 1);
+      const design = designOf(less);
+      const line = window.StitchCart.read().find(
+        (l) => l.handle === less.dataset.less && (l.design ?? null) === design
+      );
+      window.StitchCart.setQuantity(less.dataset.less, (line?.quantity ?? 1) - 1, design);
       return price();
     }
 
     const drop = hit('data-drop');
     if (drop) {
-      window.StitchCart.remove(drop.dataset.drop);
+      window.StitchCart.remove(drop.dataset.drop, designOf(drop));
       return price();
     }
 

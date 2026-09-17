@@ -33,23 +33,32 @@
 
   const count = () => read().reduce((total, line) => total + (line.quantity || 0), 0);
 
-  function add(handle, quantity = 1) {
+  // A piece and a design together identify a line: two designs of the same
+  // sign are two different things to make and to ship.
+  const same = (line, handle, design) =>
+    line.handle === handle && (line.design ?? null) === (design ?? null);
+
+  function add(handle, quantity = 1, { design = null, choices = {} } = {}) {
     const lines = read();
-    const existing = lines.find((line) => line.handle === handle);
+    const existing = lines.find((line) => same(line, handle, design));
 
     if (existing) existing.quantity += quantity;
-    else lines.push({ handle, quantity });
+    else lines.push({ handle, design, choices, quantity });
 
     write(lines);
   }
 
-  function setQuantity(handle, quantity) {
-    const lines = read().filter((line) => line.handle !== handle);
-    if (quantity > 0) lines.push({ handle, quantity });
-    write(lines);
+  function setQuantity(handle, quantity, design = null) {
+    const lines = read();
+    const existing = lines.find((line) => same(line, handle, design));
+    const rest = lines.filter((line) => !same(line, handle, design));
+
+    if (quantity > 0) rest.push({ ...(existing ?? { handle, design, choices: {} }), quantity });
+
+    write(rest);
   }
 
-  const remove = (handle) => setQuantity(handle, 0);
+  const remove = (handle, design = null) => setQuantity(handle, 0, design);
 
   const clear = () => write([]);
 

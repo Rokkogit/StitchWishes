@@ -1125,3 +1125,76 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
 }
 
 .hint--warn { color: var(--alert); }
+
+/* ---------------------------------------------------- designs in admin -- */
+
+.designs-edit {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--line);
+}
+
+.design-head,
+.design-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr 6.5rem 5rem 2rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.design-head {
+  margin-bottom: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.design-row { margin-bottom: 0.45rem; }
+
+.design-row__pic {
+  aspect-ratio: 1;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper-raised);
+}
+
+.design-row__pic img { width: 100%; height: 100%; object-fit: contain; }
+
+.design-row__name,
+.design-row__num .field { padding: 0.4rem 0.6rem; font-size: 0.88rem; }
+
+.design-row__num {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.design-row__drop {
+  width: 2rem; height: 2rem;
+  border: 0; background: none;
+  color: var(--ink-faint);
+  font-size: 1.1rem; line-height: 1;
+  cursor: pointer;
+}
+
+.design-row__drop:hover { color: var(--alert); }
+
+@media (max-width: 560px) {
+  .design-head { display: none; }
+  .design-row {
+    grid-template-columns: 2.5rem 1fr 2rem;
+    grid-template-areas: 'pic name drop' 'pic price stock';
+    row-gap: 0.35rem;
+  }
+  .design-row__pic { grid-area: pic; }
+  .design-row__name { grid-area: name; }
+  .design-row__num:nth-of-type(1) { grid-area: price; }
+  .design-row__num:nth-of-type(2) { grid-area: stock; }
+  .design-row__drop { grid-area: drop; }
+}

@@ -601,6 +601,8 @@
           <label class="label" for="f-desc">Description</label>
           <textarea class="field field--desc" id="f-desc" rows="9" data-field="description">${escapeHtml(piece.description)}</textarea>
 
+          ${designsHtml(piece)}
+
           <label class="label" for="f-handle">Web address</label>
           <input class="field field--mono" id="f-handle" value="${escapeHtml(piece.handle)}" data-field="handle">
           <p class="hint">stitch-wishes.vercel.app/product?handle=<strong>${escapeHtml(piece.handle)}</strong></p>
@@ -615,6 +617,150 @@
         </div>
       </div>
     `;
+  }
+
+
+  /* ------------------------------------------------------------- designs */
+
+  /* A design is a photograph with a name, and optionally its own price and its
+     own stock. That shape comes from the catalog itself: the source data calls
+     these "Option 1" through "Option 10" while 55 of 61 carry their own
+     picture, so the picture is what a customer actually chooses between. */
+
+  const newDesignId = () =>
+    `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const designsOf = (piece) => piece?.designs?.options ?? [];
+
+  function designRowHtml(design, index, piece) {
+    // Blank means "same as the piece", which is different from zero.
+    const price = design.price == null ? '' : design.price;
+    const stock = design.stock == null ? '' : design.stock;
+
+    return `
+      <div class="design-row" data-design-index="${index}">
+        <div class="design-row__pic"><img src="${escapeHtml(design.image)}" alt=""></div>
+
+        <input class="field design-row__name" value="${escapeHtml(design.name ?? '')}"
+               placeholder="What is this one called?" aria-label="Name"
+               data-design-field="name">
+
+        <div class="design-row__num">
+          <span aria-hidden="true">$</span>
+          <input class="field field--mono" inputmode="decimal" value="${escapeHtml(price)}"
+                 placeholder="${escapeHtml(piece.price ?? '—')}" aria-label="Price"
+                 data-design-field="price">
+        </div>
+
+        <div class="design-row__num">
+          <input class="field field--mono" inputmode="numeric" value="${escapeHtml(stock)}"
+                 placeholder="&#8734;" aria-label="How many" data-design-field="stock">
+        </div>
+
+        <button class="design-row__drop" type="button" data-drop-design
+                aria-label="Remove this design">&times;</button>
+      </div>
+    `;
+  }
+
+  function designsHtml(piece) {
+    const designs = designsOf(piece);
+
+    return `
+      <div class="designs-edit">
+        <p class="label">Designs</p>
+
+        ${designs.length
+          ? `<div class="design-head">
+               <span></span><span>Name</span><span>Price</span><span>Stock</span><span></span>
+             </div>
+             ${designs.map((d, i) => designRowHtml(d, i, piece)).join('')}`
+          : `<p class="hint">
+               No designs. Add some if this piece comes in several versions and
+               a customer needs to pick one by looking at it.
+             </p>`}
+
+        <button class="btn btn-ghost" type="button" data-add-designs>Add designs</button>
+
+        ${designs.length
+          ? `<p class="hint">
+               Leave price empty to use the piece price. Leave stock empty for
+               made to order. Zero means that one design is sold out while the
+               others stay on sale.
+             </p>`
+          : ''}
+      </div>
+    `;
+  }
+
+  // Adding designs reuses the photo picker: they are photographs, and there is
+  // no reason to invent a second way of choosing one.
+  function addDesignsFrom(paths) {
+    const piece = byHandle(state.editing);
+    if (!piece) return;
+
+    const existing = designsOf(piece);
+    const already = new Set(existing.map((design) => design.image));
+
+    const added = paths
+      .filter((path) => !already.has(path))
+      .map((path) => ({ id: newDesignId(), name: '', image: path, price: null, stock: null }));
+
+    if (!added.length) return;
+
+    piece.designs = {
+      label: piece.designs?.label || 'Design',
+      options: [...existing, ...added],
+    };
+
+    touch();
+  }
+
+  function onDesignInput(event) {
+    const field = event.target.closest('[data-design-field]');
+    if (!field) return;
+
+    const index = Number(field.closest('[data-design-index]').dataset.designIndex);
+    const design = designsOf(byHandle(state.editing))[index];
+    if (!design) return;
+
+    const name = field.dataset.designField;
+    const blank = field.value.trim() === '';
+
+    // Empty is a real value here: it means "inherit the piece" for price and
+    // "made to order" for stock. Coercing it to zero would price something at
+    // nothing, or take it off sale.
+    if (name === 'price') design.price = blank ? null : Number(field.value);
+    else if (name === 'stock') design.stock = blank ? null : Number(field.value);
+    else design.name = field.value;
+
+    touch();
+  }
+
+  function onDesignClick(event) {
+    if (event.target.closest('[data-add-designs]')) {
+      state.picking = 'designs';
+      renderPicker();
+      return true;
+    }
+
+    const drop = event.target.closest('[data-drop-design]');
+    if (drop) {
+      const index = Number(drop.closest('[data-design-index]').dataset.designIndex);
+      const piece = byHandle(state.editing);
+      const design = designsOf(piece)[index];
+
+      if (design?.name && !window.confirm(`Remove the "${design.name}" design?`)) return true;
+
+      const rest = designsOf(piece).filter((_, i) => i !== index);
+      piece.designs = rest.length ? { ...piece.designs, options: rest } : null;
+
+      touch();
+      renderPiece();
+      return true;
+    }
+
+    return false;
   }
 
   /* -------------------------------------------------------- uploading */
@@ -738,12 +884,18 @@
 
   function renderPicker() {
     const piece = byHandle(state.editing);
-    const used = new Set(piece.images ?? []);
+    const forDesigns = state.picking === 'designs';
+
+    // A tick means "already on this piece", which is a different set depending
+    // on what the picker was opened for.
+    const used = new Set(
+      forDesigns ? designsOf(piece).map((d) => d.image) : piece.images ?? []
+    );
 
     el.picker.innerHTML = `
       <div class="picker__panel" role="dialog" aria-modal="true" aria-label="Choose a photograph">
         <div class="picker__head">
-          <h2>Choose a photograph</h2>
+          <h2>${forDesigns ? 'Choose designs' : 'Choose a photograph'}</h2>
           <div class="picker__actions">
             <label class="btn btn-primary picker__upload">
               Upload photos
@@ -814,6 +966,8 @@
     const hit = (attr) => event.target.closest(`[${attr}]`);
     const piece = byHandle(state.editing);
 
+    if (onDesignClick(event)) return;
+
     const open = hit('data-open');
     if (open) return openPiece(open.dataset.open);
 
@@ -829,7 +983,7 @@
     if (hit('data-remove')) return removePiece(state.editing);
 
     if (hit('data-pick')) {
-      state.picking = true;
+      state.picking = 'images';
       return renderPicker();
     }
     if (hit('data-close-picker')) return closePicker();
@@ -837,6 +991,14 @@
     const use = hit('data-use');
     if (use) {
       const src = use.dataset.use;
+
+      // The same picker serves two jobs: choosing the photographs shown in the
+      // gallery, and choosing which photographs become designs.
+      if (state.picking === 'designs') {
+        addDesignsFrom([src]);
+        return renderPicker();
+      }
+
       const images = piece.images ?? [];
       updatePiece(state.editing, {
         images: images.includes(src) ? images.filter((i) => i !== src) : [...images, src],
@@ -873,6 +1035,8 @@
   // Typing updates the draft but never re-renders: rebuilding the form under
   // the cursor would move the caret to the end on every keystroke.
   function onInput(event) {
+    if (event.target.closest('[data-design-field]')) return onDesignInput(event);
+
     const field = event.target.closest('[data-field]');
     if (!field || !state.editing) return;
 

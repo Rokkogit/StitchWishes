@@ -74,12 +74,117 @@ function galleryHtml(product) {
   return `${main}<div class="thumbs">${thumbs}</div>`;
 }
 
+/* --------------------------------------------------------------- designs */
+
+/* The source catalog named these "Option 1" through "Option 10", which tells
+   a customer nothing. What actually distinguishes them is the photograph, so
+   that is what you pick from. Selecting one swaps the main image, so you are
+   always looking at the thing you are about to buy. */
+
+const chosen = { design: null, choices: {} };
+
+const designsOf = (product) => product.designs?.options ?? [];
+
+function designPickerHtml(product) {
+  const designs = designsOf(product);
+  if (!designs.length) return '';
+
+  const buttons = designs
+    .map((design) => {
+      const sold = design.stock === 0;
+      return `
+        <button class="design${sold ? ' is-gone' : ''}" type="button"
+                data-design="${escapeHtml(design.id)}" ${sold ? 'disabled' : ''}
+                title="${escapeHtml(design.name || '')}"
+                aria-label="${escapeHtml(design.name || 'Design')}${sold ? ', sold out' : ''}">
+          <img src="${escapeHtml(design.image)}" alt="" loading="lazy">
+          ${sold ? '<span class="design__gone">Sold</span>' : ''}
+        </button>`;
+    })
+    .join('');
+
+  return `
+    <div class="designs">
+      <p class="label">${escapeHtml(product.designs.label || 'Design')} <span class="designs__pick" data-design-name>Pick one</span></p>
+      <div class="designs__row">${buttons}</div>
+    </div>
+  `;
+}
+
+function choicesHtml(product) {
+  const axes = product.choices ?? [];
+  if (!axes.length) return '';
+
+  return axes
+    .map(
+      (axis) => `
+      <div class="choices" data-axis="${escapeHtml(axis.id)}">
+        <p class="label">${escapeHtml(axis.label)}</p>
+        <div class="choices__row">
+          ${axis.values
+            .map(
+              (value) => `
+            <button class="choice" type="button"
+                    data-choice="${escapeHtml(axis.id)}" data-value="${escapeHtml(value.id)}">
+              ${escapeHtml(value.label)}
+            </button>`
+            )
+            .join('')}
+        </div>
+      </div>`
+    )
+    .join('');
+}
+
+// Everything that depends on which design is selected, refreshed in place.
+// Re-rendering the whole panel would throw away the gallery position.
+function refreshSelection(root, product) {
+  const design = designsOf(product).find((d) => d.id === chosen.design) ?? null;
+
+  const price = design?.price ?? product.price;
+  const priceNode = root.querySelector('.detail__price');
+  if (priceNode) priceNode.textContent = formatPrice(price);
+
+  const name = root.querySelector('[data-design-name]');
+  if (name) name.textContent = design ? design.name || 'Selected' : 'Pick one';
+
+  for (const button of root.querySelectorAll('[data-design]')) {
+    button.classList.toggle('is-on', button.dataset.design === chosen.design);
+  }
+
+  for (const button of root.querySelectorAll('[data-choice]')) {
+    button.classList.toggle('is-on', chosen.choices[button.dataset.choice] === button.dataset.value);
+  }
+
+  // The main photograph follows the selection.
+  const main = root.querySelector('[data-gallery-main]');
+  if (main && design?.image) main.src = design.image;
+
+  const add = root.querySelector('[data-add]');
+  if (add) {
+    const needsDesign = designsOf(product).length > 0 && !chosen.design;
+    add.disabled = needsDesign;
+    add.textContent = needsDesign ? 'Choose a design first' : 'Add to bag';
+  }
+}
+
 /* ---------------------------------------------------------------- buying */
 
 // Three states, and they are genuinely different: something with no price is
 // not for sale yet, something at zero stock is gone, and everything else can
 // go in the bag. Collapsing them would tell a customer the wrong thing.
 function buyHtml(product) {
+  const designs = designsOf(product);
+
+  // Every design gone is the same as the piece being gone, and saying so is
+  // kinder than letting someone try each one in turn.
+  if (designs.length && designs.every((design) => design.stock === 0)) {
+    return `
+      <p class="buy-note">Every one of these has sold. Message @stitch.wishess — another can usually be made.</p>
+      <button class="btn btn-primary" type="button" disabled>Sold out</button>
+    `;
+  }
+
   if (product.stock === 0) {
     return `
       <p class="buy-note">This one has sold. Message @stitch.wishess — another can usually be made.</p>
@@ -109,15 +214,50 @@ function buyHtml(product) {
 }
 
 function initBuy(root, product) {
-  const button = root.querySelector('[data-add]');
-  if (!button) return;
+  chosen.design = null;
+  chosen.choices = {};
 
-  button.addEventListener('click', () => {
-    window.StitchCart?.add(product.handle, 1);
+  // A single design is not a choice — pick it for them rather than making
+  // someone press a button that has no alternative.
+  const designs = designsOf(product).filter((design) => design.stock !== 0);
+  if (designs.length === 1) chosen.design = designs[0].id;
 
-    const added = root.querySelector('[data-added]');
-    if (added) added.hidden = false;
+  // Same for a choice axis nobody can vary.
+  for (const axis of product.choices ?? []) {
+    if (axis.values.length === 1) chosen.choices[axis.id] = axis.values[0].id;
+  }
+
+  root.addEventListener('click', (event) => {
+    const design = event.target.closest('[data-design]');
+    if (design && !design.disabled) {
+      chosen.design = design.dataset.design;
+      refreshSelection(root, product);
+      return;
+    }
+
+    const choice = event.target.closest('[data-choice]');
+    if (choice) {
+      chosen.choices[choice.dataset.choice] = choice.dataset.value;
+      refreshSelection(root, product);
+    }
   });
+
+  const button = root.querySelector('[data-add]');
+  if (button) {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+
+      window.StitchCart?.add(product.handle, 1, {
+        design: chosen.design,
+        choices: { ...chosen.choices },
+      });
+
+      const added = root.querySelector('[data-added]');
+      if (added) added.hidden = false;
+    });
+  }
+
+  refreshSelection(root, product);
 }
 
 function initGallery(root) {
@@ -327,6 +467,8 @@ function renderAll(products) {
           <h1>${escapeHtml(product.title)}</h1>
           <p class="detail__price">${formatPrice(product.price)}</p>
           <div class="detail__desc"><p>${escapeHtml(product.description)}</p></div>
+          ${designPickerHtml(product)}
+          ${choicesHtml(product)}
           ${buyHtml(product)}
         </div>
       `;
