@@ -66,3 +66,65 @@ test('the live catalog fits the store with room to spare', () => {
 
   assert.ok(result.size < 200_000, `catalog is ${result.size} bytes`);
 });
+
+/* ---------------------------------------- designs built from the catalog */
+// The generator turns Shopify variants into designs. These guard the rules
+// that make a design usable rather than just present.
+
+test('the generated designs all validate', () => {
+  const result = validateCatalog(realCatalog());
+  const designErrors = (result.errors ?? []).filter((e) => e.field === 'designs');
+
+  assert.deepEqual(designErrors, []);
+});
+
+test('some pieces actually got designs', () => {
+  const withDesigns = realCatalog().filter((p) => p.designs?.options?.length);
+
+  assert.ok(withDesigns.length >= 5, `only ${withDesigns.length} pieces carry designs`);
+});
+
+// A design is chosen by its photograph, so two designs that look identical
+// are not a choice a customer can make.
+test('no piece offers two designs with the same photograph', () => {
+  for (const piece of realCatalog()) {
+    const images = (piece.designs?.options ?? []).map((d) => d.image);
+    assert.equal(
+      new Set(images).size,
+      images.length,
+      `${piece.title} repeats a design photograph`
+    );
+  }
+});
+
+test('every design photograph is one the catalog accepts', () => {
+  const result = validateCatalog(realCatalog());
+
+  assert.equal(result.ok, true);
+});
+
+// One design is not a choice; the picker would be a single button.
+test('no piece offers exactly one design', () => {
+  for (const piece of realCatalog()) {
+    const count = piece.designs?.options?.length ?? 0;
+    assert.notEqual(count, 1, `${piece.title} has a single design`);
+  }
+});
+
+test('designs default to made to order rather than sold out', () => {
+  for (const piece of realCatalog()) {
+    for (const design of piece.designs?.options ?? []) {
+      assert.notEqual(design.stock, 0, `${piece.title} ships a design already sold out`);
+    }
+  }
+});
+
+test('a second choice axis carries real labels, not Option 1', () => {
+  for (const piece of realCatalog()) {
+    for (const axis of piece.choices ?? []) {
+      for (const value of axis.values) {
+        assert.doesNotMatch(value.label, /^Option \d+$/, `${piece.title}: ${value.label}`);
+      }
+    }
+  }
+});

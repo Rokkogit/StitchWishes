@@ -1198,3 +1198,18 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
   .design-row__num:nth-of-type(2) { grid-area: stock; }
   .design-row__drop { grid-area: drop; }
 }
+
+.import-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px dashed var(--aurora);
+  border-radius: var(--radius);
+  background: rgba(143, 212, 230, 0.12);
+}
+
+.import-note p { margin: 0; color: var(--ink); text-wrap: pretty; }

@@ -520,6 +520,18 @@
         </dl>
       </div>
 
+      ${(() => {
+        const { pieces, designs } = importableCount();
+        return pieces
+          ? `<div class="import-note">
+               <p><strong>${designs} designs</strong> from the original catalog are not on
+                  ${pieces} of your pieces yet — the versions each one comes in, with the
+                  photograph for each.</p>
+               <button class="btn btn-primary" type="button" data-import-designs>Add them</button>
+             </div>`
+          : '';
+      })()}
+
       <div class="filters" role="group" aria-label="Filter pieces">
         ${[['all', 'All'], ['no-photo', 'Needs a photo'], ['no-price', 'Needs a price'], ['hidden', 'Hidden']]
           .map(([key, label]) =>
@@ -619,6 +631,62 @@
     `;
   }
 
+
+  /* ------------------------------------------- importing designs -------- */
+
+  /* The catalog that ships with the site carries designs built from the
+     original Shopify data — the photograph each variant pointed at. The live
+     catalog is edited separately, so those have to be brought across
+     deliberately rather than appearing on their own. */
+
+  const bundledByHandle = () =>
+    new Map((window.STITCH_PRODUCTS ?? []).map((piece) => [piece.handle, piece]));
+
+  // Only pieces that have none. Designs someone has already set up are never
+  // replaced — an import that overwrote real work would be unforgivable.
+  function importableCount() {
+    const bundled = bundledByHandle();
+    let pieces = 0;
+    let designs = 0;
+
+    for (const piece of state.products) {
+      const source = bundled.get(piece.handle);
+      if (!source?.designs?.options?.length) continue;
+      if (piece.designs?.options?.length) continue;
+
+      pieces += 1;
+      designs += source.designs.options.length;
+    }
+
+    return { pieces, designs };
+  }
+
+  function importDesigns() {
+    const bundled = bundledByHandle();
+    let pieces = 0;
+    let designs = 0;
+
+    for (const piece of state.products) {
+      const source = bundled.get(piece.handle);
+      if (!source?.designs?.options?.length) continue;
+      if (piece.designs?.options?.length) continue;
+
+      piece.designs = structuredClone(source.designs);
+      if (source.choices?.length && !piece.choices?.length) {
+        piece.choices = structuredClone(source.choices);
+      }
+
+      pieces += 1;
+      designs += piece.designs.options.length;
+    }
+
+    touch();
+    renderGrid();
+    toast(
+      `Added ${designs} designs across ${pieces} pieces. They are named Design 1, 2, 3 — ` +
+        `rename them to what they actually are. Nothing is saved until you press Save.`
+    );
+  }
 
   /* ------------------------------------------------------------- designs */
 
@@ -972,6 +1040,7 @@
     if (open) return openPiece(open.dataset.open);
 
     if (hit('data-add')) return addPiece();
+    if (hit('data-import-designs')) return importDesigns();
     if (hit('data-back')) return showGrid();
 
     const filter = hit('data-filter');
