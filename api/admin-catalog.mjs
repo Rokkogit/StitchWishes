@@ -13,6 +13,8 @@ import { readStore, readDigest, writeStore, CATALOG_KEY, SETTINGS_KEY } from '..
 import { validateCatalog, catalogHealth } from '../lib/catalog.mjs';
 import { validateSettings, DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
+import { fillMissingDesigns } from '../lib/seed.mjs';
+import { SEED } from '../lib/catalog-seed.mjs';
 import { list } from '@vercel/blob';
 
 // Photographs uploaded from a phone live in Blob rather than in assets/, so
@@ -64,7 +66,9 @@ async function handleGet() {
   }
 
   return json(200, {
-    products: catalog.products,
+    // The editor sees the same catalog the shop does, so designs filled in
+    // for an older store are there to review and save rather than invisible.
+    products: fillMissingDesigns(catalog.products, SEED),
     // Defaults rather than null, so the editor always has a shape to draw and
     // a store with no settings yet is not a special case in the browser.
     settings: catalog.settings ?? DEFAULT_SETTINGS,

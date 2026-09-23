@@ -13,6 +13,8 @@
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
 import { resolveCart } from '../lib/cart.mjs';
+import { fillMissingDesigns } from '../lib/seed.mjs';
+import { SEED } from '../lib/catalog-seed.mjs';
 import { orderTotal } from '../lib/settings.mjs';
 import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 
@@ -33,7 +35,10 @@ export default {
       return json(503, { error: 'The shop is briefly unavailable. Try again in a moment.' });
     }
 
-    const { items, problems } = resolveCart(body?.cart, store.products);
+    // The same filling-in the storefront gets, so a design offered there is
+    // a design that can actually be bought here.
+    const catalog = fillMissingDesigns(store.products, SEED);
+    const { items, problems } = resolveCart(body?.cart, catalog);
     const settings = store.settings ?? DEFAULT_SETTINGS;
     const totals = orderTotal(items, settings);
 
