@@ -24,6 +24,11 @@
   --blossom: #f0c0e4;
   --peach: #fcd8cc;
 
+  /* The palette has no error colour because the storefront never needed one.
+     A deep rose keeps it in the family — blossom taken down to a weight that
+     reads as "stop". */
+  --alert: #a8456a;
+
   --line: rgba(13, 42, 49, 0.14);
   --line-soft: rgba(13, 42, 49, 0.07);
 
@@ -1392,3 +1397,34 @@ main {
 }
 
 .chosen .label { margin: 0; }
+
+/* --------------------------------------------------------- the small print */
+
+.policy { max-width: 42rem; }
+
+.policy h2 {
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  margin-bottom: var(--s2);
+  scroll-margin-top: var(--s4);
+}
+
+.policy p { text-wrap: pretty; }
+
+.policy ul {
+  margin: 0 0 var(--s2);
+  padding-left: 1.1rem;
+  color: var(--ink-soft);
+}
+
+.policy li { margin-bottom: 0.5rem; }
+
+.policy a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Unfinished, and meant to be obvious. This must not reach a customer. */
+.policy__todo {
+  padding: var(--s2);
+  border: 1px dashed var(--alert);
+  border-radius: 12px;
+  background: rgba(168, 69, 106, 0.08);
+  color: var(--alert);
+}
