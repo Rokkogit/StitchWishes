@@ -49,29 +49,56 @@ function mediaHtml(product, modifier) {
 // Every photograph the studio took of a piece, not just the first. Thumbnails
 // are buttons rather than divs so the gallery works from the keyboard.
 function galleryHtml(product) {
-  const images = product.images ?? [];
-  if (!images.length) return emptyMediaHtml('detail__media');
+  const entries = galleryEntries(product);
+  if (!entries.length) return emptyMediaHtml('detail__media');
 
   const main = `
     <div class="detail__media">
-      <img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" data-gallery-main>
+      <img src="${escapeHtml(entries[0].src)}" alt="${escapeHtml(product.title)}" data-gallery-main>
     </div>
   `;
 
-  if (images.length === 1) return main;
+  if (entries.length === 1) return main;
 
-  const thumbs = images
-    .map(
-      (src, index) => `
-      <button class="thumb${index === 0 ? ' is-active' : ''}" type="button"
+  const thumbs = entries
+    .map((entry, index) => {
+      const { src, design } = entry;
+      const sold = design?.stock === 0;
+
+      // What this thumbnail is determines what it announces. "Photograph 3 of
+      // 9" is right for a picture; a design needs to say it can be chosen.
+      const label = design
+        ? `${design.name || 'Design'}${sold ? ', sold out' : ', choose this one'}`
+        : `Photograph ${index + 1} of ${entries.length}`;
+
+      return `
+      <button class="thumb${index === 0 ? ' is-active' : ''}${design ? ' is-design' : ''}${sold ? ' is-gone' : ''}"
+              type="button"
               data-thumb="${escapeHtml(src)}"
-              aria-label="Photograph ${index + 1} of ${images.length}">
+              ${design ? `data-design="${escapeHtml(design.id)}"` : ''}
+              ${sold ? 'disabled' : ''}
+              title="${escapeHtml(design?.name ?? '')}"
+              aria-label="${escapeHtml(label)}">
         <img src="${escapeHtml(src)}" alt="" loading="lazy">
-      </button>`
-    )
+        ${sold ? '<span class="thumb__gone">Sold</span>' : ''}
+      </button>`;
+    })
     .join('');
 
   return `${main}<div class="thumbs">${thumbs}</div>`;
+}
+
+// Sits above the button rather than above the strip: it is about what you are
+// buying, not about what you are looking at.
+function designStateHtml(product) {
+  if (!designsOf(product).length) return '';
+
+  return `
+    <p class="chosen" data-chosen>
+      <span class="label">${escapeHtml(product.designs.label || 'Design')}</span>
+      <span data-design-name>Choose one from the photographs</span>
+    </p>
+  `;
 }
 
 /* --------------------------------------------------------------- designs */
@@ -85,30 +112,28 @@ const chosen = { design: null, choices: {} };
 
 const designsOf = (product) => product.designs?.options ?? [];
 
-function designPickerHtml(product) {
-  const designs = designsOf(product);
-  if (!designs.length) return '';
+/* Every design photograph is also a gallery photograph — the measurement is
+   in the catalog: overlap equals the design count on all eight pieces. So
+   there is one strip, not two. A thumbnail IS the design; choosing one shows
+   it large and selects it.
 
-  const buttons = designs
-    .map((design) => {
-      const sold = design.stock === 0;
-      return `
-        <button class="design${sold ? ' is-gone' : ''}" type="button"
-                data-design="${escapeHtml(design.id)}" ${sold ? 'disabled' : ''}
-                title="${escapeHtml(design.name || '')}"
-                aria-label="${escapeHtml(design.name || 'Design')}${sold ? ', sold out' : ''}">
-          <img src="${escapeHtml(design.image)}" alt="" loading="lazy">
-          ${sold ? '<span class="design__gone">Sold</span>' : ''}
-        </button>`;
-    })
-    .join('');
+   A handful of pieces carry one extra photograph, the group shot of the whole
+   set. It stays in the strip and stays viewable, but it is not something you
+   can buy, so it does not select anything. */
+function galleryEntries(product) {
+  const byImage = new Map(designsOf(product).map((design) => [design.image, design]));
+  const images = product.images ?? [];
 
-  return `
-    <div class="designs">
-      <p class="label">${escapeHtml(product.designs.label || 'Design')} <span class="designs__pick" data-design-name>Pick one</span></p>
-      <div class="designs__row">${buttons}</div>
-    </div>
-  `;
+  const entries = images.map((src) => ({ src, design: byImage.get(src) ?? null }));
+
+  // Defensive: a design whose photograph is not among the gallery images would
+  // otherwise be unreachable. Does not happen in this catalog, but a design
+  // nobody can pick is a piece nobody can buy.
+  for (const design of designsOf(product)) {
+    if (!images.includes(design.image)) entries.push({ src: design.image, design });
+  }
+
+  return entries;
 }
 
 function choicesHtml(product) {
@@ -146,19 +171,16 @@ function refreshSelection(root, product) {
   if (priceNode) priceNode.textContent = formatPrice(price);
 
   const name = root.querySelector('[data-design-name]');
-  if (name) name.textContent = design ? design.name || 'Selected' : 'Pick one';
-
-  for (const button of root.querySelectorAll('[data-design]')) {
-    button.classList.toggle('is-on', button.dataset.design === chosen.design);
-  }
+  if (name) name.textContent = design ? (design.name || 'Selected') : 'Choose one from the photographs';
 
   for (const button of root.querySelectorAll('[data-choice]')) {
     button.classList.toggle('is-on', chosen.choices[button.dataset.choice] === button.dataset.value);
   }
 
-  // The main photograph follows the selection.
-  const main = root.querySelector('[data-gallery-main]');
-  if (main && design?.image) main.src = design.image;
+  // The strip is the picker, so the chosen design is marked there.
+  for (const thumb of root.querySelectorAll('[data-thumb]')) {
+    thumb.classList.toggle('is-chosen', Boolean(chosen.design) && thumb.dataset.design === chosen.design);
+  }
 
   const add = root.querySelector('[data-add]');
   if (add) {
@@ -227,14 +249,9 @@ function initBuy(root, product) {
     if (axis.values.length === 1) chosen.choices[axis.id] = axis.values[0].id;
   }
 
+  // Designs are chosen in the gallery strip, which handles its own clicks.
+  // Only the plain choices are left for here.
   root.addEventListener('click', (event) => {
-    const design = event.target.closest('[data-design]');
-    if (design && !design.disabled) {
-      chosen.design = design.dataset.design;
-      refreshSelection(root, product);
-      return;
-    }
-
     const choice = event.target.closest('[data-choice]');
     if (choice) {
       chosen.choices[choice.dataset.choice] = choice.dataset.value;
@@ -260,7 +277,7 @@ function initBuy(root, product) {
   refreshSelection(root, product);
 }
 
-function initGallery(root) {
+function initGallery(root, product) {
   const main = root.querySelector('[data-gallery-main]');
   const thumbs = Array.from(root.querySelectorAll('[data-thumb]'));
   if (!main || !thumbs.length) return;
@@ -269,6 +286,13 @@ function initGallery(root) {
     thumb.addEventListener('click', () => {
       main.src = thumb.dataset.thumb;
       thumbs.forEach((other) => other.classList.toggle('is-active', other === thumb));
+
+      // One click does both: show it, and — if it is something you can buy —
+      // choose it. The group shot shows without changing what is chosen.
+      if (thumb.dataset.design) {
+        chosen.design = thumb.dataset.design;
+        refreshSelection(root, product);
+      }
     });
   });
 }
@@ -467,12 +491,12 @@ function renderAll(products) {
           <h1>${escapeHtml(product.title)}</h1>
           <p class="detail__price">${formatPrice(product.price)}</p>
           <div class="detail__desc"><p>${escapeHtml(product.description)}</p></div>
-          ${designPickerHtml(product)}
+          ${designStateHtml(product)}
           ${choicesHtml(product)}
           ${buyHtml(product)}
         </div>
       `;
-      initGallery(detail);
+      initGallery(detail, product);
       initBuy(detail, product);
       renderGrid(document.querySelector('[data-related]'), pickRandom(products, 4, product.handle));
     }

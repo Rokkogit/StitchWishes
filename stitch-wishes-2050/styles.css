@@ -1304,68 +1304,6 @@ main {
   .bag-item__drop { grid-area: drop; }
 }
 
-/* ==========================================================================
-   Designs — picking by photograph.
-
-   The catalog calls these "Option 1" through "Option 10", which tells nobody
-   anything. The photograph is the label.
-   ========================================================================== */
-
-.designs { margin-bottom: var(--s3); }
-
-.designs__pick {
-  margin-left: 0.5rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink-soft);
-}
-
-.designs__row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
-  gap: 0.5rem;
-}
-
-.design {
-  position: relative;
-  padding: 0;
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--paper-raised);
-  aspect-ratio: 1;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.design img { width: 100%; height: 100%; object-fit: contain; }
-
-.design:hover:not([disabled]) { transform: translateY(-2px); border-color: var(--aurora); }
-
-/* Selected wears the same ring the strung beads do. */
-.design.is-on {
-  border-color: transparent;
-  box-shadow: 0 0 0 2px var(--aurora), 0 0 0 6px rgba(143, 212, 230, 0.22);
-}
-
-/* Sold designs stay visible: seeing what existed is part of seeing what the
-   studio makes, and it explains why the row is not a full set. */
-.design.is-gone { cursor: not-allowed; opacity: 0.45; }
-.design.is-gone img { filter: grayscale(1); }
-
-.design__gone {
-  position: absolute;
-  inset: auto 0 0 0;
-  background: rgba(13, 42, 49, 0.72);
-  color: var(--paper);
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-align: center;
-  padding: 0.15rem 0;
-}
-
 /* ------------------------------------------------------- plain choices -- */
 
 .choices { margin-bottom: var(--s3); }
@@ -1401,3 +1339,56 @@ main {
 @media (prefers-reduced-motion: reduce) {
   .design, .choice { transition: none; }
 }
+
+/* ==========================================================================
+   One strip.
+
+   Every design photograph is also a gallery photograph, so a second row of
+   the same pictures was showing the same thing twice. A thumbnail IS the
+   design: it shows large and it is chosen, in one press.
+   ========================================================================== */
+
+/* A thumbnail that can be chosen sits a little prouder than one that is only
+   a picture, so the difference is visible before anything is clicked. */
+.thumb.is-design {
+  border-color: var(--line);
+  cursor: pointer;
+}
+
+/* Currently shown. */
+.thumb.is-active { border-color: var(--aurora); }
+
+/* Currently chosen — the same holo ring the strung beads wear. */
+.thumb.is-chosen {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--aurora), 0 0 0 6px rgba(143, 212, 230, 0.22);
+}
+
+.thumb.is-gone { cursor: not-allowed; opacity: 0.45; }
+.thumb.is-gone img { filter: grayscale(1); }
+
+.thumb__gone {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: rgba(13, 42, 49, 0.72);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0.12rem 0;
+}
+
+.thumb { position: relative; }
+
+/* What is being bought, said next to the button rather than over the strip. */
+.chosen {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 var(--s2);
+  color: var(--ink);
+}
+
+.chosen .label { margin: 0; }
