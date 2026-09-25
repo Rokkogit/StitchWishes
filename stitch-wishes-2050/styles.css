@@ -1419,12 +1419,3 @@ main {
 .policy li { margin-bottom: 0.5rem; }
 
 .policy a { text-decoration: underline; text-underline-offset: 2px; }
-
-/* Unfinished, and meant to be obvious. This must not reach a customer. */
-.policy__todo {
-  padding: var(--s2);
-  border: 1px dashed var(--alert);
-  border-radius: 12px;
-  background: rgba(168, 69, 106, 0.08);
-  color: var(--alert);
-}

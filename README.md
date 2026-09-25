@@ -153,8 +153,11 @@ Development:
 | `VERCEL_API_TOKEN` | Writes to the store. Needs **Full Account** scope | Account Settings → Tokens |
 | `BLOB_READ_WRITE_TOKEN` | Stores uploaded photographs | Added automatically when you create a Blob store |
 | `VERCEL_TEAM_ID` | Only if the store belongs to a team | Team Settings → General |
+| `RESEND_API_KEY` | Emails each order to the shop | resend.com → API Keys |
+| `ORDER_EMAIL_TO` | Optional. Where orders go. Defaults to `stitch.wishess@gmail.com` | You choose it |
+| `ORDER_EMAIL_FROM` | Optional. Defaults to Resend's shared address | Only needed once a domain is verified |
 
-Three things worth knowing:
+Five things worth knowing:
 
 - Environment variable changes apply only to *new* deployments. Change a value
   and the live site keeps using the old one until you redeploy.
@@ -162,6 +165,18 @@ Three things worth knowing:
   the "sign everyone out" button.
 - `VERCEL_API_TOKEN` expires. When it does, saving fails with a message that
   says so rather than a generic error — but it is worth a calendar reminder.
+- Order email needs no domain bought and no DNS records set, but only because
+  of a restriction that happens to suit this shop: Resend's shared
+  `onboarding@resend.dev` sender can deliver **only to the address the Resend
+  account was opened with**. So that account must be opened with
+  `stitch.wishess@gmail.com`, and orders must go to the same address. Customer
+  receipts are Stripe's job and go out over Stripe's own domain, so the limit
+  never reaches a customer. Sending to anyone else needs a verified domain.
+- Nothing about email can fail an order. Every send reports failure by
+  returning it, and `sendOrderEmail` logs and swallows the result, so a paid
+  order is never rejected because a mail provider was having a bad afternoon.
+  The cost of that choice is that a silent failure is possible — which is
+  what the **Send me a test order** button in the Checkout tab is for.
 
 The 12-character floor on `ADMIN_CODE` is load-bearing. Serverless instances do
 not share memory, so per-instance attempt counters are not real rate limiting —

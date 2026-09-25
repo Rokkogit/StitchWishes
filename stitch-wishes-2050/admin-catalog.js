@@ -1289,6 +1289,28 @@
           <div class="preview__total"><dt>Customer pays</dt><dd>$${dollars(previewTotal(example))}</dd></div>
         </dl>
       </section>
+
+      <section class="charges">
+        <p class="label">Where orders go</p>
+
+        <p class="hint">
+          Every order is emailed to <strong>stitch.wishess@gmail.com</strong> the
+          moment it is paid for &mdash; what to make, which design, and where to
+          send it. Replying to that email answers the customer directly.
+        </p>
+
+        <button class="btn btn-ghost" type="button" data-test-email>
+          Send me a test order
+        </button>
+
+        <p class="hint" data-test-email-note role="status"></p>
+
+        <p class="hint">
+          Worth pressing now, and again if anything about the shop's email ever
+          changes. A notification that has quietly stopped working looks exactly
+          like a quiet day.
+        </p>
+      </section>
     `;
   }
 
@@ -1322,7 +1344,47 @@
     if (name === 'enabled' || name === 'includeShipping') renderCheckout();
   }
 
+  // Proving the notification pipe works, rather than assuming it does. The
+  // result is written next to the button as well as in the usual banner,
+  // because the question being asked is about this button specifically.
+  async function sendTestEmail(button) {
+    const note = el.checkoutPanel.querySelector('[data-test-email-note]');
+
+    button.disabled = true;
+    if (note) note.textContent = 'Sending…';
+
+    try {
+      const response = await fetch('/api/admin-test-email', { method: 'POST' });
+      const body = await response.json().catch(() => ({}));
+
+      if (response.ok) {
+        const where = `Sent to ${body.to}. Give it a minute, and check spam the first time.`;
+        if (note) note.textContent = where;
+        toast(where);
+        return;
+      }
+
+      const why = body.error || 'The test email could not be sent.';
+      if (note) note.textContent = why;
+      fail(why);
+    } catch {
+      const why = 'Could not reach the shop to send it. Nothing was sent.';
+      if (note) note.textContent = why;
+      fail(why);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function onCheckoutClick(event) {
+    state.pressing = false;
+
+    const test = event.target.closest('[data-test-email]');
+    if (test) {
+      sendTestEmail(test);
+      return;
+    }
+
     if (event.target.closest('[data-add-fee]')) {
       state.settings.fees = [...(state.settings.fees ?? []), newFee()];
       touch();
@@ -1363,9 +1425,26 @@
 
     el.checkoutPanel.addEventListener('input', onCheckoutInput);
     el.checkoutPanel.addEventListener('click', onCheckoutClick);
+    // Pressing a button in this panel blurs whichever field had focus, and the
+    // blur below rebuilds the panel — which pulls the button out of the DOM
+    // between the press and the click, so the click never lands. Noting the
+    // press lets that one rebuild be skipped. Recorded on pointerdown rather
+    // than from the blur's relatedTarget because Safari does not focus a button
+    // when it is clicked, so there would be nothing to read.
+    el.checkoutPanel.addEventListener('pointerdown', (event) => {
+      state.pressing = Boolean(event.target.closest('button'));
+    });
+
     // Redraw on blur rather than on input: rebuilding the form under the
     // cursor would send the caret to the end on every keystroke.
-    el.checkoutPanel.addEventListener('blur', renderCheckout, true);
+    el.checkoutPanel.addEventListener(
+      'blur',
+      () => {
+        if (state.pressing) return;
+        renderCheckout();
+      },
+      true
+    );
 
     for (const button of document.querySelectorAll('[data-tab]')) {
       button.addEventListener('click', () => showTab(button.dataset.tab));
