@@ -508,9 +508,28 @@ function renderAll(products) {
   }
 }
 
+// The thank-you page. Reached only by Stripe redirecting after a payment that
+// went through, so this is the one place the bag is known to be spent and safe to
+// empty. Clearing it any earlier would lose an order to a closed tab.
+function initThanks() {
+  const slot = document.querySelector('[data-reference]');
+  if (!slot) return;
+
+  window.StitchCart?.clear();
+
+  const session = new URLSearchParams(window.location.search).get('session');
+  if (!session) return;
+
+  // The tail of the Stripe session id. Enough for Abi to find the payment if
+  // someone quotes it, where the whole id reads like noise.
+  slot.textContent = `Reference ${session.slice(-8).toUpperCase()}`;
+  slot.hidden = false;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const bundled = window.STITCH_PRODUCTS || [];
 
+  initThanks();
   renderAll(bundled);
   initClouds();
   initThread();

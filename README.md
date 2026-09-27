@@ -156,6 +156,8 @@ Development:
 | `RESEND_API_KEY` | Emails each order to the shop | resend.com → API Keys |
 | `ORDER_EMAIL_TO` | Optional. Where orders go. Defaults to `stitch.wishess@gmail.com` | You choose it |
 | `ORDER_EMAIL_FROM` | Optional. Defaults to Resend's shared address | Only needed once a domain is verified |
+| `STRIPE_SECRET_KEY` | Takes payments. `sk_test_…` until you are ready for real money | Stripe → Developers → API keys |
+| `STRIPE_WEBHOOK_SECRET` | Verifies that an order really came from Stripe. `whsec_…` | Stripe → Webhooks → the endpoint's signing secret |
 
 Five things worth knowing:
 
@@ -182,6 +184,56 @@ The 12-character floor on `ADMIN_CODE` is load-bearing. Serverless instances do
 not share memory, so per-instance attempt counters are not real rate limiting —
 passphrase length is what actually stops brute force. Lowering it means adding
 a shared rate-limit store first.
+
+### Taking payments
+
+`/api/checkout` prices the bag and hands back a Stripe Checkout URL;
+`/api/stripe-webhook` hears back that it was paid and emails the order. No
+Stripe SDK — the API is reached over plain fetch and the webhook signature is
+verified with `node:crypto`, the same way sessions are.
+
+**Testing it without real money.** Stripe test keys work immediately, with no
+business details and no approval:
+
+1. Stripe → Developers → API keys → copy the **test** secret key
+   (`sk_test_…`) into `STRIPE_SECRET_KEY`.
+2. Stripe → Developers → Webhooks → add an endpoint at
+   `https://<your-host>/api/stripe-webhook`, subscribed to
+   `checkout.session.completed`. Copy its signing secret (`whsec_…`) into
+   `STRIPE_WEBHOOK_SECRET`.
+3. Redeploy, then buy something with card `4242 4242 4242 4242`, any future
+   expiry, any CVC.
+
+Going live is the same two values from the live-mode keys. `readStripeConfig`
+reports which kind is in use, because the difference is a test card and
+somebody's actual money.
+
+Three decisions worth knowing about:
+
+- **The total is computed twice and compared.** Stripe recalculates the total
+  from the line items it is handed, so `checkedSessionParams` works it out
+  independently and refuses to create the session if the two disagree. A
+  customer shown $31.98 and charged $37.98 is the worst bug this code could
+  have, and the kind that goes unnoticed for weeks.
+- **Nothing in the cart is believed.** It arrives from `localStorage`. Only the
+  handle, design, choices and quantity are read; every price and name comes from
+  the catalog. A test asserts that a cart claiming `price: 0.01` is still
+  charged $12.99.
+- **The webhook answers 200 to almost everything.** A non-2xx tells Stripe to
+  retry, and retrying does not fix a mail provider — it resends the same event
+  for days. The only 4xx is a signature that does not verify. A paid order whose
+  email failed is logged as `PAID BUT NOT EMAILED`, which is worth an alert if
+  logs are ever wired up.
+
+Tax rides as its own labelled line item rather than through Stripe Tax. Stripe
+Tax is the right mechanism eventually, but it needs a registration and a
+decision about where the shop has an obligation, neither of which software can
+assume. Tax is off by default, so this charges nothing until someone decides
+it should.
+
+Deduplication of webhook events is currently in-memory, so it only catches
+repeats landing on the same warm instance. That covers most of them; durable
+deduplication belongs with order storage, which does not exist yet.
 
 ### Being found and being shared
 
