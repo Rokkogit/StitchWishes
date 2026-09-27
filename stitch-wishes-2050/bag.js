@@ -117,7 +117,7 @@
       <li class="bag-item">
         ${media}
         <div class="bag-item__body">
-          <a class="bag-item__title" href="product.html?handle=${encodeURIComponent(item.handle)}">
+          <a class="bag-item__title" href="/p/${encodeURIComponent(item.handle)}">
             ${escapeHtml(item.title)}
           </a>
           ${variant}

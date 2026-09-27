@@ -183,6 +183,41 @@ not share memory, so per-instance attempt counters are not real rate limiting â€
 passphrase length is what actually stops brute force. Lowering it means adding
 a shared rate-limit store first.
 
+### Being found and being shared
+
+Product pages are served by a function at `/p/<handle>` rather than as static
+files, for the same reason the catalog lives in Global Config: pieces are added
+and repriced in the admin panel without a deployment, and anything generated at
+build time would start lying the first time that happened.
+
+The function fetches `product.html` as its shell and rewrites the head, so the
+header, footer and script list stay in one place rather than being written a
+second time inside a function. `<base href="/">` goes in first, because served
+from `/p/` every relative link in the shell would otherwise resolve to
+`/p/styles.css` and the page would arrive unstyled.
+
+`/sitemap.xml` and `/robots.txt` are functions too. The sitemap reflects the
+live catalog and skips hidden pieces; robots names the sitemap on whatever host
+the request arrived on, so a custom domain needs no change.
+
+Two things to know:
+
+- **`/product?handle=x` still works and is `noindex`.** It is the old address,
+  kept so links already sent in a DM do not break. `injectHead` strips that
+  `noindex` when rendering `/p/<handle>`. Reversing those two would de-index the
+  whole catalog silently, which is why both halves are covered by tests.
+- **The static pages hardcode `https://stitch-wishes.vercel.app`** in their
+  `canonical` and `og:` tags, because a static file has nowhere to read the host
+  from. Open Graph images must be absolute or preview bots ignore them. If a real
+  domain is bought, `grep -rl stitch-wishes.vercel.app stitch-wishes-2050` finds
+  every line to change. The dynamic routes need no change.
+
+`tests/pages.test.mjs` checks each shipped page for a canonical URL, a full
+preview card with an absolute image, links to the policies and terms, and no
+inline script the Content-Security-Policy would block. All of those look
+completely fine in a browser when they are missing, which is why they are
+asserted against the files rather than trusted.
+
 ### Running it locally
 
 The storefront is unchanged and still works under any static server. `/admin`

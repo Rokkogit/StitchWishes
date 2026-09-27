@@ -262,8 +262,17 @@
            Your saved catalog is untouched.</p>
       </div></div>
       <pre class="crash">${escapeHtml(detail)}</pre>
-      <button class="btn btn-ghost" type="button" onclick="location.reload()">Reload</button>
+      <button class="btn btn-ghost" type="button" data-reload>Reload</button>
     `;
+
+    // Bound directly rather than written as an onclick attribute, which the
+    // site's Content-Security-Policy blocks — and bound here rather than left to
+    // the delegated handler, because the delegated handler is part of what may
+    // just have crashed. This is the one button that has to work when nothing
+    // else does.
+    el.main
+      .querySelector('[data-reload]')
+      ?.addEventListener('click', () => location.reload());
   }
 
   function render() {

@@ -299,7 +299,7 @@ function initGallery(root, product) {
 
 function cardHtml(product) {
   return `
-    <a class="card" href="product.html?handle=${encodeURIComponent(product.handle)}">
+    <a class="card" href="/p/${encodeURIComponent(product.handle)}">
       ${mediaHtml(product)}
       <div class="card__body">
         <h3 class="card__title">${escapeHtml(product.title)}</h3>
@@ -468,7 +468,12 @@ function renderAll(products) {
 
   const detail = document.querySelector('[data-product-detail]');
   if (detail) {
-    const handle = new URLSearchParams(window.location.search).get('handle');
+    // /p/<handle> is the real address of a piece; ?handle= is the old one, kept
+    // working so links already shared in a DM do not break.
+    const fromPath = window.location.pathname.match(/\/p\/([^/]+)/);
+    const handle =
+      new URLSearchParams(window.location.search).get('handle') ??
+      (fromPath ? decodeURIComponent(fromPath[1]) : null);
     const product = products.find((p) => p.handle === handle);
 
     if (!product) {

@@ -3,16 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Piece — Stitch Wishess</title>
-  <!-- The shell only. /p/<handle> renders this page with real tags and strips
-       this line; a direct hit on ?handle= is the old address and should not be
-       indexed alongside it. -->
+  <title>Not found &mdash; Stitch Wishess</title>
+  <meta name="description" content="That page could not be found. The catalog is still here.">
+  <link rel="canonical" href="https://stitch-wishes.vercel.app/404">
   <meta name="robots" content="noindex, follow">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=holo30">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Stitch Wishess">
+  <meta property="og:title" content="Not found &mdash; Stitch Wishess">
+  <meta property="og:description" content="That page could not be found. The catalog is still here.">
+  <meta property="og:url" content="https://stitch-wishes.vercel.app/404">
+  <meta property="og:image" content="https://stitch-wishes.vercel.app/assets/stitch-witch-portrait.png">
+  <meta property="og:image:alt" content="Illustrated portrait of Abi stitching in her studio">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Not found &mdash; Stitch Wishess">
+  <meta name="twitter:description" content="That page could not be found. The catalog is still here.">
+  <meta name="twitter:image" content="https://stitch-wishes.vercel.app/assets/stitch-witch-portrait.png">
 </head>
 <body>
   <div class="thread" data-thread aria-hidden="true"></div>
@@ -31,17 +42,26 @@
     </div>
   </header>
 
-  <main>
-    <section class="wrap" data-section="The piece">
-      <div class="detail" data-product-detail></div>
+<main>
+    <section class="page-head wrap" data-section="Not found">
+      <p class="label">404</p>
+      <h1>This page has <span class="holo-text">wandered off</span></h1>
+      <p>The link may be old, or a piece may have sold and been taken down.
+        Nothing is broken on your end.</p>
+      <div class="hero__actions">
+        <a class="btn btn-primary" href="collection.html">Open the catalog</a>
+        <a class="btn btn-ghost" href="index.html">Back to the front</a>
+      </div>
     </section>
 
-    <section class="band band--tight wrap" data-related-band data-section="More">
+    <section class="band band--tight wrap" data-section="More">
       <div class="band-head reveal">
-        <h2>More from the studio</h2>
-        <span class="band-note">Also handmade</span>
+        <h2>Made by hand</h2>
+        <span class="band-note">Still here</span>
       </div>
-      <div class="grid reveal" data-related></div>
+      <!-- Filled by main.js from the live catalog. A dead end with something
+           worth looking at beats a dead end. -->
+      <div class="grid reveal" data-featured></div>
     </section>
   </main>
 
@@ -78,7 +98,7 @@
     </div>
   </footer>
 
-  <script src="products.js?v=holo30"></script>
+
   <script src="cart.js?v=holo30"></script>
   <script src="main.js?v=holo30"></script>
 </body>

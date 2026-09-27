@@ -1,0 +1,36 @@
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <h3>Stitch Wishess</h3>
+          <ul>
+            <li>Handmade and made-to-order keepsakes, built one wish at a time.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Shop</h3>
+          <ul>
+            <li><a href="collection.html">Full catalog</a></li>
+            <li><a href="about.html">The maker</a></li>
+            <li><a href="policies.html">Shipping &amp; returns</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Elsewhere</h3>
+          <ul>
+            <li><a href="https://instagram.com/stitch.wishess" target="_blank" rel="noopener">@stitch.wishess</a></li>
+            <li><a href="mailto:stitch.wishess@gmail.com">stitch.wishess@gmail.com</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; Stitch Wishess</span>
+        <span>Concept redesign</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="cart.js?v=holo29"></script>
+  <script src="main.js?v=holo29"></script>
+</body>
+</html>
