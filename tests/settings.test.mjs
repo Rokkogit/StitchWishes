@@ -82,6 +82,44 @@ test('shipping and fees round-trip', () => {
   assert.equal(result.value.fees[0].label, 'Handling');
 });
 
+// Pinned deliberately. This is the rate a customer is charged when nothing has
+// been saved in the Checkout tab, so it is a business number living in code,
+// and it should not be able to drift without somebody noticing here.
+test('the fallback rate is $6 flat, switched on', () => {
+  assert.equal(DEFAULT_SETTINGS.shipping.amount, 6);
+  assert.equal(DEFAULT_SETTINGS.shipping.enabled, true);
+
+  const total = orderTotal([{ price: 12.99, quantity: 1 }], null);
+  assert.equal(total.shipping, 6);
+  assert.equal(total.total, 18.99);
+  // One postage charge per order, not one per piece.
+  assert.equal(orderTotal([{ price: 10, quantity: 4 }], null).shipping, 6);
+});
+
+test('a stored rate beats the fallback, which is the point of the fallback', () => {
+  const saved = validateSettings({
+    shipping: { label: 'Postage', amount: 9.5, enabled: true },
+    fees: [],
+  });
+
+  const total = orderTotal([{ price: 10, quantity: 1 }], saved.value);
+  assert.equal(total.shipping, 9.5);
+  assert.equal(total.lines[0].label, 'Postage');
+});
+
+test('free shipping is still reachable by switching it off', () => {
+  const saved = validateSettings({
+    shipping: { label: 'Shipping', amount: 6, enabled: false },
+    fees: [],
+  });
+
+  assert.equal(orderTotal([{ price: 10, quantity: 1 }], saved.value).shipping, 0);
+});
+
+test('an empty bag is not charged postage, fallback or not', () => {
+  assert.equal(orderTotal([], null).total, 0);
+});
+
 test('a missing settings object falls back to the defaults', () => {
   for (const missing of [null, undefined]) {
     const result = validateSettings(missing);

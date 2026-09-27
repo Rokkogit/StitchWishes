@@ -16,6 +16,14 @@ import { orderTotal } from '../lib/settings.mjs';
 
 const KEY = { RESEND_API_KEY: 're_test_key' };
 
+// Explicit, so these tests assert what the email says rather than what the
+// shop happens to charge for postage this month.
+const NO_CHARGES = {
+  shipping: { label: 'Shipping', amount: 0, enabled: false },
+  fees: [],
+  tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false },
+};
+
 const item = (over = {}) => ({
   handle: 'beaded-pen',
   title: 'Beaded pen',
@@ -29,7 +37,7 @@ const item = (over = {}) => ({
 const order = (over = {}) => ({
   reference: 'SW-260925-001',
   items: [item()],
-  totals: orderTotal([item()], null),
+  totals: orderTotal([item()], NO_CHARGES),
   customer: { name: 'Jane Doe', email: 'jane@example.com' },
   ...over,
 });
@@ -106,7 +114,7 @@ test('the subject carries the total, the name and the count', () => {
 
 test('the count is plural for more than one, and counts quantity not rows', () => {
   const items = [item({ quantity: 2 }), item({ handle: 'night-light', quantity: 1 })];
-  const { subject } = orderEmail({ ...order(), items, totals: orderTotal(items, null) });
+  const { subject } = orderEmail({ ...order(), items, totals: orderTotal(items, NO_CHARGES) });
   assert.match(subject, /3 pieces/);
 });
 
@@ -146,14 +154,14 @@ test('every line says what to make: piece, design, choices and handle', () => {
 test('a row multiplies through cents rather than in floating point', () => {
   // 3 * 19.99 is 59.969999999999999 in floating point.
   const items = [item({ price: 19.99, quantity: 3 })];
-  const { text } = orderEmail({ ...order(), items, totals: orderTotal(items, null) });
+  const { text } = orderEmail({ ...order(), items, totals: orderTotal(items, NO_CHARGES) });
 
   assert.match(text, /\$59\.97/);
   assert.ok(!text.includes('59.96'), 'a floating-point artefact reached the email');
 });
 
 test('an order with no items still produces a readable email', () => {
-  const empty = orderEmail({ items: [], totals: orderTotal([], null), customer: {} });
+  const empty = orderEmail({ items: [], totals: orderTotal([], NO_CHARGES), customer: {} });
   assert.match(empty.subject, /\$0\.00/);
   assert.match(empty.text, /not given/);
 });
