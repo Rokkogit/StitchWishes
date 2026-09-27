@@ -3,17 +3,47 @@
   "outputDirectory": "stitch-wishes-2050",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/p/:handle", "destination": "/api/p?handle=:handle" },
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/robots.txt", "destination": "/api/robots" }
+    {
+      "source": "/p/:handle",
+      "destination": "/api/p?handle=:handle"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/seo?doc=sitemap"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api/seo?doc=robots"
+    },
+    {
+      "source": "/api/admin-login",
+      "destination": "/api/admin-auth?action=login"
+    },
+    {
+      "source": "/api/admin-logout",
+      "destination": "/api/admin-auth?action=logout"
+    },
+    {
+      "source": "/api/admin-session",
+      "destination": "/api/admin-auth?action=session"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
         {
           "key": "Permissions-Policy",
           "value": "camera=(), microphone=(), geolocation=(), payment=()"

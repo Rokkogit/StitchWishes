@@ -3,9 +3,14 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import login from '../api/admin-login.mjs';
-import logout from '../api/admin-logout.mjs';
-import session from '../api/admin-session.mjs';
+import { login as loginFn, logout as logoutFn, session as sessionFn } from '../lib/admin-auth.mjs';
+
+// These were three routes and are now one function behind rewrites. Wrapped back
+// into the { fetch } shape so every assertion below still reads as a request
+// against an endpoint.
+const login = { fetch: loginFn };
+const logout = { fetch: logoutFn };
+const session = { fetch: sessionFn };
 import { createToken, COOKIE_NAME } from '../lib/session.mjs';
 
 const CODE = 'test-passphrase-fixture';

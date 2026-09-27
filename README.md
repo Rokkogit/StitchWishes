@@ -185,6 +185,27 @@ not share memory, so per-instance attempt counters are not real rate limiting â€
 passphrase length is what actually stops brute force. Lowering it means adding
 a shared rate-limit store first.
 
+### The twelve-function ceiling
+
+A Hobby deployment allows **twelve Serverless Functions**, and every file in
+`api/` is one. Adding checkout took `api/` to thirteen, and the build was
+rejected outright: the previous deployment kept serving, every test passed, and
+the only symptom was that a pushed change never appeared.
+
+So related routes share a function and are separated by a rewrite:
+
+| Function | Serves |
+|---|---|
+| `api/admin-auth.mjs` | `/api/admin-login`, `/api/admin-logout`, `/api/admin-session` |
+| `api/seo.mjs` | `/robots.txt`, `/sitemap.xml` |
+
+The URLs are unchanged, so nothing in the browser needed touching. `tests/deployment.test.mjs`
+now asserts the count, that every rewrite points at a route that exists, and that
+every `/api/` URL the site's scripts call is answered by something â€” that last one
+matters because the auth merge was invisible to the admin page *only* because of
+a rewrite, and dropping one would break login with a 404 that nothing else would
+notice.
+
 ### Taking payments
 
 `/api/checkout` prices the bag and hands back a Stripe Checkout URL;

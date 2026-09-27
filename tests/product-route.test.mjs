@@ -7,8 +7,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { render, clearShellCache } from '../api/p.mjs';
-import sitemap from '../api/sitemap.mjs';
-import robots from '../api/robots.mjs';
+import { sitemap as sitemapFn, robots as robotsFn } from '../lib/seo.mjs';
+
+// Both live in one function now, picked apart by a rewrite. Wrapped so the
+// assertions still read as requests against two endpoints.
+const sitemap = { fetch: sitemapFn };
+const robots = { fetch: robotsFn };
 import { CATALOG_KEY } from '../lib/global-config.mjs';
 import { hasDetailContainer } from '../lib/render.mjs';
 
