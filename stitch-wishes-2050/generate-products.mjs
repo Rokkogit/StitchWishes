@@ -2,6 +2,7 @@
 // Run with: node generate-products.mjs
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
+import { nameFor } from '../lib/design-names.mjs';
 
 const raw = JSON.parse(readFileSync('../stitch-products.json', 'utf-8'));
 
@@ -71,10 +72,11 @@ function buildDesigns(product, basePrice) {
     label: 'Design',
     options: [...seen.values()].map((v, i) => ({
       id: `d${i + 1}`,
-      // Neutral and obviously provisional. "Option 3" would look like a real
-      // name; a blank would give the picker nothing to announce. Abi knows
-      // what each one is and can rename them.
-      name: `Design ${i + 1}`,
+      // The real name where there is one, keyed by photograph in
+      // lib/design-names.mjs. The fallback stays neutral and obviously
+      // provisional: "Option 3" would look like a real name, and a blank would
+      // give the picker nothing to announce.
+      name: nameFor(v.image, `Design ${i + 1}`),
       image: v.image,
       price: v.price,
       stock: null,   // made to order until someone says otherwise
