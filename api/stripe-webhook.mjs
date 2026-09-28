@@ -15,6 +15,7 @@ import { SEED } from '../lib/catalog-seed.mjs';
 import { resolveCart } from '../lib/cart.mjs';
 import { readStripeConfig, verifyWebhook, cartFromMetadata, encodeCart } from '../lib/stripe.mjs';
 import { sendOrderEmail } from '../lib/notify.mjs';
+import { shippingOf, formatAddress } from '../lib/orders.mjs';
 
 // Stripe can deliver the same event more than once, and two identical order
 // emails is a real annoyance. This only covers repeats that land on the same warm
@@ -35,28 +36,6 @@ function remember(id) {
   seen.add(id);
 
   return true;
-}
-
-// Stripe moved shipping details under collected_information in later API
-// versions. Both shapes are read, because which one arrives depends on the
-// account's API version rather than on anything in this code.
-function shippingOf(session) {
-  return session?.collected_information?.shipping_details ?? session?.shipping_details ?? null;
-}
-
-function formatAddress(details) {
-  const address = details?.address;
-  if (!address) return '';
-
-  return [
-    details.name,
-    address.line1,
-    address.line2,
-    [address.city, address.state, address.postal_code].filter(Boolean).join(', '),
-    address.country,
-  ]
-    .filter(Boolean)
-    .join('\n');
 }
 
 export async function handle(request, fetchImpl = fetch) {

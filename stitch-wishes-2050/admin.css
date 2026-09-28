@@ -1213,3 +1213,153 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
 }
 
 .import-note p { margin: 0; color: var(--ink); text-wrap: pretty; }
+
+/* ------------------------------------------------------------------ orders */
+/* Read-only, so this is a list to scan rather than a form to fill. The shape
+   that matters is: what to make, who for, where to. */
+
+.orders__summary {
+  margin: 0 0 var(--s3);
+  color: var(--ink-soft);
+}
+
+.orders {
+  display: grid;
+  gap: var(--s3);
+}
+
+.order {
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-raised);
+}
+
+.order__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+}
+
+.order__ref {
+  margin: 0;
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-weight: 500;
+}
+
+.order__when,
+.order__choices,
+.order__handle {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.order__right {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.order__total {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.flag--test {
+  background: rgba(63, 111, 168, 0.12);
+  color: #3f6fa8;
+}
+
+.order__lines {
+  list-style: none;
+  margin: var(--s2) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.order__line {
+  display: grid;
+  grid-template-columns: 44px 1fr auto auto;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.order__thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--line);
+}
+
+.order__thumb--none { display: block; }
+
+.order__what { display: grid; }
+
+.order__handle { font-family: 'DM Mono', ui-monospace, monospace; }
+
+.order__qty,
+.order__money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.order__money { font-weight: 600; }
+
+.order__foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
+/* The address is the one thing here that must survive being copied out, so its
+   line breaks are kept exactly as the customer typed them. */
+.order__address {
+  white-space: pre-line;
+  margin: 0.25rem 0 0;
+}
+
+.order__who p { margin: 0 0 0.15rem; }
+
+.order__sums {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 190px;
+  font-variant-numeric: tabular-nums;
+}
+
+.order__sums div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  color: var(--ink-soft);
+}
+
+.order__sums-total {
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.order__stripe {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .order__foot { grid-template-columns: 1fr; }
+  .order__line { grid-template-columns: 36px 1fr auto; }
+  .order__thumb { width: 36px; height: 36px; }
+  /* The quantity is already in the line above on a narrow screen. */
+  .order__qty { grid-column: 3; }
+  .order__money { grid-column: 2 / -1; text-align: right; }
+}

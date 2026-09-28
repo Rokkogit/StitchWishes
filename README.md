@@ -185,6 +185,29 @@ not share memory, so per-instance attempt counters are not real rate limiting �
 passphrase length is what actually stops brute force. Lowering it means adding
 a shared rate-limit store first.
 
+### Orders
+
+The Orders tab reads from Stripe on every open. There is deliberately no order
+storage of our own.
+
+Stripe already holds every completed order, durably, with the address and the
+amount, and it is the system of record for the money whatever this code does.
+A second copy would only be a second thing that can disagree — and both storage
+options available here are poor fits: Vercel Blob serves from public URLs, which
+is not where a stranger's home address belongs, and Global Config shares one
+megabyte with the catalog, so a busy year of orders would eventually stop the
+shop being editable.
+
+Reading from Stripe also means the tab works backwards: orders placed before it
+existed appear in it.
+
+Pieces are still named from the catalog, because Stripe only knows what a line
+was called when it was sold, while the catalog knows the handle, the design and
+the choices — which is what actually has to be made. When the catalog cannot
+name something (deleted, or the store is unreachable) the order falls back to
+Stripe's own record and the panel says so, and the raw `handle:design:quantity`
+is kept either way so nothing about a paid order is ever unrecoverable.
+
 ### The twelve-function ceiling
 
 A Hobby deployment allows **twelve Serverless Functions**, and every file in

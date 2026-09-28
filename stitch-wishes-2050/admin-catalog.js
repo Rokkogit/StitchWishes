@@ -285,10 +285,191 @@
     }
   }
 
+
+  /* --------------------------------------------------------------- orders */
+  /*
+     Read from Stripe on demand rather than kept in state with the catalog.
+     Orders are not something being edited, so there is nothing to hold, and a
+     fresh read is the difference between seeing an order that arrived a minute
+     ago and not.
+  */
+
+  function ordersHtml(body) {
+    return `
+      <div class="admin-head"><div>
+        <h1>Orders</h1>
+        <p class="admin-sub">What people have bought. Read live from Stripe.</p>
+      </div>
+      <button class="btn btn-ghost" type="button" data-orders-refresh>Refresh</button>
+      </div>
+      ${body}
+    `;
+  }
+
+  function orderLineHtml(item) {
+    const name = [item.title, item.designName].filter(Boolean).join(' — ');
+    const choices = (item.choices ?? [])
+      .map((choice) => `${escapeHtml(choice.label)}: ${escapeHtml(choice.value)}`)
+      .join(', ');
+
+    return `
+      <li class="order__line">
+        ${item.image ? `<img class="order__thumb" src="${escapeHtml(item.image)}" alt="">` : '<span class="order__thumb order__thumb--none"></span>'}
+        <span class="order__what">
+          <strong>${escapeHtml(name || 'Untitled piece')}</strong>
+          ${choices ? `<span class="order__choices">${choices}</span>` : ''}
+          ${item.handle ? `<span class="order__handle">${escapeHtml(item.handle)}</span>` : ''}
+        </span>
+        <span class="order__qty">&times;${item.quantity}</span>
+        <span class="order__money">$${dollars(item.price * item.quantity)}</span>
+      </li>
+    `;
+  }
+
+  function orderHtml(order) {
+    const when = order.placedAt
+      ? new Date(order.placedAt).toLocaleString(undefined, {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })
+      : 'date unknown';
+
+    return `
+      <article class="order">
+        <header class="order__head">
+          <div>
+            <p class="order__ref">${escapeHtml(order.reference)}</p>
+            <p class="order__when">${escapeHtml(when)}</p>
+          </div>
+          <div class="order__right">
+            <p class="order__total">$${dollars(order.totals.total)}</p>
+            ${order.live ? '' : '<span class="flag flag--test">test</span>'}
+          </div>
+        </header>
+
+        <ul class="order__lines">${order.items.map(orderLineHtml).join('')}</ul>
+
+        ${
+          order.itemsFromStripe
+            ? `<p class="hint hint--warn">The catalog could not name these, so they are
+               shown as Stripe recorded them. Ordered: ${escapeHtml(
+                 order.rawCart.map((line) => `${line.handle}${line.design ? ` (${line.design})` : ''} x${line.quantity}`).join(', ')
+               )}</p>`
+            : ''
+        }
+
+        <div class="order__foot">
+          <div class="order__who">
+            <p><strong>${escapeHtml(order.customer.name || 'No name given')}</strong></p>
+            ${order.customer.email ? `<p><a href="mailto:${escapeHtml(order.customer.email)}">${escapeHtml(order.customer.email)}</a></p>` : ''}
+            ${order.customer.address ? `<p class="order__address">${escapeHtml(order.customer.address)}</p>` : '<p class="hint">No address recorded.</p>'}
+          </div>
+
+          <div class="order__sums">
+            <div><span>Items</span><span>$${dollars(order.totals.subtotal)}</span></div>
+            ${order.totals.shipping > 0 ? `<div><span>Shipping</span><span>$${dollars(order.totals.shipping)}</span></div>` : ''}
+            ${order.totals.tax > 0 ? `<div><span>Tax</span><span>$${dollars(order.totals.tax)}</span></div>` : ''}
+            <div class="order__sums-total"><span>Paid</span><span>$${dollars(order.totals.total)}</span></div>
+            ${order.dashboard ? `<a class="order__stripe" href="${escapeHtml(order.dashboard)}" target="_blank" rel="noopener">Open in Stripe</a>` : ''}
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderOrders(data) {
+    if (!data.configured) {
+      el.ordersPanel.innerHTML = ordersHtml(`
+        <p class="charges__empty">${escapeHtml(data.message || 'Payments are not switched on yet.')}</p>
+      `);
+      return;
+    }
+
+    if (!data.orders.length) {
+      el.ordersPanel.innerHTML = ordersHtml(`
+        <p class="charges__empty">Nothing yet. When someone buys something it appears here.</p>
+      `);
+      return;
+    }
+
+    const s = data.summary;
+
+    el.ordersPanel.innerHTML = ordersHtml(`
+      ${
+        data.testMode
+          ? `<p class="hint hint--warn">These are test orders. No money changed hands
+             — switch to the live Stripe keys when the shop is ready to open.</p>`
+          : ''
+      }
+      ${
+        data.catalogOk
+          ? ''
+          : '<p class="hint hint--warn">The catalog store could not be reached, so pieces may be named as Stripe recorded them.</p>'
+      }
+
+      <p class="orders__summary">
+        <strong>${s.count}</strong> order${s.count === 1 ? '' : 's'}
+        &nbsp;&middot;&nbsp; <strong>$${dollars(s.total)}</strong> taken
+      </p>
+
+      <div class="orders">${data.orders.map(orderHtml).join('')}</div>
+
+      ${data.hasMore ? '<button class="btn btn-ghost" type="button" data-orders-more>Show older orders</button>' : ''}
+    `);
+  }
+
+  async function loadOrders(after = null) {
+    if (!after) {
+      el.ordersPanel.innerHTML = ordersHtml('<p class="charges__empty">Looking…</p>');
+    }
+
+    try {
+      const response = await fetch(`/api/admin-orders${after ? `?after=${encodeURIComponent(after)}` : ''}`);
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        el.ordersPanel.innerHTML = ordersHtml(
+          `<p class="hint hint--warn">${escapeHtml(body.error || 'Could not load orders.')}</p>`
+        );
+        return;
+      }
+
+      // Paging appends, so "show older" does not throw away what is on screen.
+      if (after && state.orders) {
+        body.orders = [...state.orders.orders, ...body.orders];
+        body.summary = {
+          ...body.summary,
+          count: state.orders.summary.count + body.summary.count,
+          total: Math.round((state.orders.summary.total + body.summary.total) * 100) / 100,
+        };
+      }
+
+      state.orders = body;
+      renderOrders(body);
+    } catch {
+      el.ordersPanel.innerHTML = ordersHtml(
+        '<p class="hint hint--warn">Could not reach the shop to load orders.</p>'
+      );
+    }
+  }
+
+  function onOrdersClick(event) {
+    if (event.target.closest('[data-orders-refresh]')) {
+      state.orders = null;
+      loadOrders();
+      return;
+    }
+
+    if (event.target.closest('[data-orders-more]')) {
+      loadOrders(state.orders?.nextAfter ?? null);
+    }
+  }
+
   function showTab(name) {
     state.tab = name;
 
     el.catalogPanel.hidden = name !== 'catalog';
+    el.ordersPanel.hidden = name !== 'orders';
     el.checkoutPanel.hidden = name !== 'checkout';
     el.homepagePanel.hidden = name !== 'homepage';
 
@@ -300,6 +481,7 @@
 
     if (name === 'homepage') renderHomepage();
     else if (name === 'checkout') renderCheckout();
+    else if (name === 'orders') loadOrders();
     else render();
   }
 
@@ -1429,8 +1611,11 @@
   function wire() {
     el.main = $('[data-catalog]');
     el.catalogPanel = el.main;
+    el.ordersPanel = $('[data-orders]');
     el.checkoutPanel = $('[data-checkout]');
     el.homepagePanel = $('[data-homepage]');
+
+    el.ordersPanel.addEventListener('click', onOrdersClick);
 
     el.checkoutPanel.addEventListener('input', onCheckoutInput);
     el.checkoutPanel.addEventListener('click', onCheckoutClick);
