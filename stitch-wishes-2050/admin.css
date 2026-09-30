@@ -1393,3 +1393,25 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
   gap: 0.5rem;
   margin-bottom: 0.45rem;
 }
+
+/* --------------------------------------------- getting parcels out ------ */
+.flag--sent {
+  background: rgba(44, 122, 90, 0.14);
+  color: #2c7a5a;
+}
+
+.flag--todo {
+  background: rgba(168, 69, 106, 0.12);
+  color: var(--alert);
+}
+
+.orders__todo { color: var(--alert); }
+
+.order__copy,
+.order__ship {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+}
+
+.order__ship { width: 100%; justify-content: center; }

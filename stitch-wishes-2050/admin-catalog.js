@@ -14,6 +14,7 @@
     products: [],      // the working copy
     settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [], tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false } },
     saved: '',         // JSON of the last known server state, for dirty checks
+    ordersFilter: 'toship',  // what still has to go out is the useful default
     content: null,     // the site's own words
     contentFields: [],  // how to draw the form, sent by the server
     digest: null,
@@ -374,6 +375,7 @@
           <div class="order__right">
             <p class="order__total">$${dollars(order.totals.total)}</p>
             ${order.live ? '' : '<span class="flag flag--test">test</span>'}
+            ${order.shippedAt ? '<span class="flag flag--sent">sent</span>' : '<span class="flag flag--todo">to send</span>'}
           </div>
         </header>
 
@@ -392,7 +394,14 @@
           <div class="order__who">
             <p><strong>${escapeHtml(order.customer.name || 'No name given')}</strong></p>
             ${order.customer.email ? `<p><a href="mailto:${escapeHtml(order.customer.email)}">${escapeHtml(order.customer.email)}</a></p>` : ''}
-            ${order.customer.address ? `<p class="order__address">${escapeHtml(order.customer.address)}</p>` : '<p class="hint">No address recorded.</p>'}
+            ${order.customer.phone ? `<p><a href="tel:${escapeHtml(order.customer.phone)}">${escapeHtml(order.customer.phone)}</a></p>` : ''}
+            ${
+              order.customer.address
+                ? `<p class="order__address">${escapeHtml(order.customer.address)}</p>
+                   <button class="btn btn-ghost order__copy" type="button"
+                           data-copy-address="${escapeHtml(order.customer.address)}">Copy address</button>`
+                : '<p class="hint hint--warn">No address recorded &mdash; ask before sending.</p>'
+            }
           </div>
 
           <div class="order__sums">
@@ -400,6 +409,16 @@
             ${order.totals.shipping > 0 ? `<div><span>Shipping</span><span>$${dollars(order.totals.shipping)}</span></div>` : ''}
             ${order.totals.tax > 0 ? `<div><span>Tax</span><span>$${dollars(order.totals.tax)}</span></div>` : ''}
             <div class="order__sums-total"><span>Paid</span><span>$${dollars(order.totals.total)}</span></div>
+            ${
+              order.paymentIntent
+                ? `<button class="btn ${order.shippedAt ? 'btn-ghost' : 'btn-primary'} order__ship"
+                           type="button"
+                           data-ship="${escapeHtml(order.paymentIntent)}"
+                           data-ship-to="${order.shippedAt ? 'false' : 'true'}">
+                     ${order.shippedAt ? 'Mark not sent' : 'Mark as sent'}
+                   </button>`
+                : ''
+            }
             ${order.dashboard ? `<a class="order__stripe" href="${escapeHtml(order.dashboard)}" target="_blank" rel="noopener">Open in Stripe</a>` : ''}
           </div>
         </div>
@@ -440,9 +459,26 @@
       <p class="orders__summary">
         <strong>${s.count}</strong> order${s.count === 1 ? '' : 's'}
         &nbsp;&middot;&nbsp; <strong>$${dollars(s.total)}</strong> taken
+        ${s.toShip ? `&nbsp;&middot;&nbsp; <strong class="orders__todo">${s.toShip} still to send</strong>` : '&nbsp;&middot;&nbsp; everything sent'}
       </p>
 
-      <div class="orders">${data.orders.map(orderHtml).join('')}</div>
+      <div class="filters">
+        <button class="chip${state.ordersFilter === 'toship' ? ' is-on' : ''}" type="button" data-orders-filter="toship">
+          To send <span class="chip__count">${s.toShip}</span>
+        </button>
+        <button class="chip${state.ordersFilter !== 'toship' ? ' is-on' : ''}" type="button" data-orders-filter="all">
+          All <span class="chip__count">${s.count}</span>
+        </button>
+      </div>
+
+      <div class="orders">${
+        (state.ordersFilter === 'toship'
+          ? data.orders.filter((order) => !order.shippedAt)
+          : data.orders
+        )
+          .map(orderHtml)
+          .join('') || '<p class="charges__empty">Nothing waiting to go out.</p>'
+      }</div>
 
       ${data.hasMore ? '<button class="btn btn-ghost" type="button" data-orders-more>Show older orders</button>' : ''}
     `);
@@ -483,7 +519,78 @@
     }
   }
 
+  async function setShipped(button) {
+    const paymentIntent = button.dataset.ship;
+    const shipped = button.dataset.shipTo === 'true';
+
+    button.disabled = true;
+    const was = button.textContent;
+    button.textContent = shipped ? 'Marking\u2026' : 'Undoing\u2026';
+
+    try {
+      const response = await fetch('/api/admin-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntent, shipped }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        fail(body.error || 'Could not record that.');
+        button.disabled = false;
+        button.textContent = was;
+        return;
+      }
+
+      // Re-read rather than patching the row by hand: the count in the header
+      // and the filter both depend on it, and keeping three things in step
+      // locally is how they drift.
+      state.orders = null;
+      await loadOrders();
+      toast(shipped ? 'Marked as sent.' : 'Marked as not sent.');
+    } catch {
+      fail('Could not reach the shop.');
+      button.disabled = false;
+      button.textContent = was;
+    }
+  }
+
+  async function copyAddress(button) {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyAddress);
+      const was = button.textContent;
+      button.textContent = 'Copied';
+      window.setTimeout(() => {
+        button.textContent = was;
+      }, 1200);
+    } catch {
+      // Clipboard access can be refused. The address is on screen and
+      // selectable, so say that rather than failing silently.
+      fail('Could not copy. Select the address and copy it by hand.');
+    }
+  }
+
   function onOrdersClick(event) {
+    const filter = event.target.closest('[data-orders-filter]');
+    if (filter) {
+      state.ordersFilter = filter.dataset.ordersFilter;
+      if (state.orders) renderOrders(state.orders);
+      return;
+    }
+
+    const ship = event.target.closest('[data-ship]');
+    if (ship) {
+      setShipped(ship);
+      return;
+    }
+
+    const copy = event.target.closest('[data-copy-address]');
+    if (copy) {
+      copyAddress(copy);
+      return;
+    }
+
     if (event.target.closest('[data-orders-refresh]')) {
       state.orders = null;
       loadOrders();

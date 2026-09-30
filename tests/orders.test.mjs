@@ -15,7 +15,7 @@ import {
   formatAddress,
   shippingOf,
 } from '../lib/orders.mjs';
-import { listSessions, readStripeConfig } from '../lib/stripe.mjs';
+import { listSessions, readStripeConfig, markShipped } from '../lib/stripe.mjs';
 import { createToken, COOKIE_NAME } from '../lib/session.mjs';
 import { CATALOG_KEY } from '../lib/global-config.mjs';
 
@@ -144,6 +144,72 @@ test('a design and its choices reach the order', () => {
   const order = toOrder(withDesign, catalog);
 
   assert.equal(order.items[0].designName, 'Blue holographic');
+});
+
+/* --------------------------------------------------------- getting it sent */
+
+test('an order starts life as not yet sent', () => {
+  assert.equal(toOrder(session(), [piece()]).shippedAt, null);
+});
+
+test('a mark written on the payment is read back', () => {
+  const marked = session({
+    payment_intent: { id: 'pi_123', metadata: { shipped_at: '2026-09-30T10:00:00.000Z' } },
+  });
+
+  assert.equal(toOrder(marked, [piece()]).shippedAt, '2026-09-30T10:00:00.000Z');
+});
+
+test('an unexpanded payment is treated as not sent rather than crashing', () => {
+  // Stripe gives a bare id unless the list asks for it expanded.
+  const bare = session({ payment_intent: 'pi_123' });
+  const order = toOrder(bare, [piece()]);
+
+  assert.equal(order.paymentIntent, 'pi_123');
+  assert.equal(order.shippedAt, null);
+});
+
+test('an empty mark means not sent, so un-marking leaves no tombstone', () => {
+  const cleared = session({ payment_intent: { id: 'pi_1', metadata: { shipped_at: '' } } });
+
+  assert.equal(toOrder(cleared, [piece()]).shippedAt, null);
+});
+
+test('the summary counts what still has to go out', () => {
+  const summary = orderSummary([
+    { paid: true, live: true, shippedAt: null, totals: { total: 10 } },
+    { paid: true, live: true, shippedAt: '2026-09-30T10:00:00Z', totals: { total: 20 } },
+    { paid: true, live: true, shippedAt: null, totals: { total: 5 } },
+  ]);
+
+  assert.equal(summary.count, 3);
+  assert.equal(summary.toShip, 2);
+});
+
+test('everything sent counts as nothing to do', () => {
+  const summary = orderSummary([
+    { paid: true, live: true, shippedAt: '2026-09-30T10:00:00Z', totals: { total: 10 } },
+  ]);
+
+  assert.equal(summary.toShip, 0);
+});
+
+test('marking sends the state wanted, not a toggle', async () => {
+  // A toggle flips the wrong way with two tabs open, or on a retried request.
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, body: new URLSearchParams(options.body) });
+    return new Response('{"id":"pi_1"}', { status: 200 });
+  };
+
+  const config = readStripeConfig({ STRIPE_SECRET_KEY: 'sk_test_x' });
+
+  await markShipped(config, 'pi_1', '2026-09-30T10:00:00.000Z', fetchImpl);
+  assert.match(calls[0].url, /payment_intents\/pi_1/);
+  assert.equal(calls[0].body.get('metadata[shipped_at]'), '2026-09-30T10:00:00.000Z');
+
+  await markShipped(config, 'pi_1', '', fetchImpl);
+  assert.equal(calls[1].body.get('metadata[shipped_at]'), '');
 });
 
 /* ------------------------------------------------------------- summaries */
@@ -338,14 +404,104 @@ test('a refused Stripe key says which failure it was', async () => {
   assert.match(body.error, /Invalid API Key/);
 });
 
-test('POST is refused', async () => {
+test('an unsupported method is refused', async () => {
+  // POST is a real route now - it marks an order sent - so the 405 moved.
   store();
   const response = await orders(
-    new Request('https://x/api/admin-orders', { method: 'POST', headers: { Cookie: authCookie() } }),
+    new Request('https://x/api/admin-orders', { method: 'DELETE', headers: { Cookie: authCookie() } }),
     stripeList([])
   );
 
   assert.equal(response.status, 405);
+  assert.equal(response.headers.get('Allow'), 'GET, POST');
+});
+
+test('marking an order sent needs a session, like everything else here', async () => {
+  store();
+  let called = false;
+
+  const response = await orders(
+    new Request('https://x/api/admin-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentIntent: 'pi_1', shipped: true }),
+    }),
+    async () => {
+      called = true;
+      return new Response('{}');
+    }
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal(called, false, 'wrote to Stripe for an anonymous request');
+});
+
+test('a mark without a real payment id is refused before reaching Stripe', async () => {
+  store();
+  let called = false;
+
+  const post = (body) =>
+    new Request('https://x/api/admin-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: authCookie() },
+      body: JSON.stringify(body),
+    });
+
+  for (const bad of [{}, { paymentIntent: '' }, { paymentIntent: 'cs_123' }, { paymentIntent: 42 }]) {
+    const response = await orders(post(bad), async () => {
+      called = true;
+      return new Response('{}');
+    });
+
+    assert.equal(response.status, 400, JSON.stringify(bad));
+  }
+
+  assert.equal(called, false);
+});
+
+test('marking an order sent records the time on the payment', async () => {
+  store();
+  const calls = [];
+
+  const response = await orders(
+    new Request('https://x/api/admin-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: authCookie() },
+      body: JSON.stringify({ paymentIntent: 'pi_123', shipped: true }),
+    }),
+    async (url, options) => {
+      calls.push({ url, body: new URLSearchParams(options.body) });
+      return new Response('{"id":"pi_123"}', { status: 200 });
+    }
+  );
+
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.ok(body.shippedAt, 'no time recorded');
+  assert.match(calls[0].url, /payment_intents\/pi_123/);
+  assert.ok(calls[0].body.get('metadata[shipped_at]'));
+});
+
+test('un-marking clears it rather than writing a flag that says no', async () => {
+  store();
+  const calls = [];
+
+  const response = await orders(
+    new Request('https://x/api/admin-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: authCookie() },
+      body: JSON.stringify({ paymentIntent: 'pi_123', shipped: false }),
+    }),
+    async (url, options) => {
+      calls.push(new URLSearchParams(options.body));
+      return new Response('{"id":"pi_123"}', { status: 200 });
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).shippedAt, null);
+  assert.equal(calls[0].get('metadata[shipped_at]'), '');
 });
 
 test('the paging cursor is handed back for older orders', async () => {

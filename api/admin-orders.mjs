@@ -9,7 +9,7 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readConfig, verifyToken, readCookie, COOKIE_NAME } from '../lib/session.mjs';
-import { readStripeConfig, listSessions } from '../lib/stripe.mjs';
+import { readStripeConfig, listSessions, markShipped } from '../lib/stripe.mjs';
 import { toOrder, sortOrders, dashboardUrl, orderSummary } from '../lib/orders.mjs';
 import { readStore } from '../lib/global-config.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
@@ -25,9 +25,58 @@ function authorized(request) {
   return verifyToken(config.secret, token).valid;
 }
 
+/*
+   Marking a parcel as sent.
+
+   Written onto Stripe's own payment record rather than into a store of ours.
+   There is no database here by design, and this is one flag per order that
+   belongs to the order - a second place to keep it is a second place that can
+   disagree with Stripe about what happened.
+
+   Served by this function rather than its own, because a Hobby deployment
+   allows twelve and api/ is at eleven.
+*/
+async function handleShip(request, fetchImpl) {
+  const stripe = readStripeConfig(process.env);
+  if (!stripe.ok) return json(503, { error: 'Card payment is not switched on yet.' });
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json(400, { error: 'Expected a JSON body.' });
+  }
+
+  const paymentIntent = body?.paymentIntent;
+  if (typeof paymentIntent !== 'string' || !paymentIntent.startsWith('pi_')) {
+    return json(400, { error: 'Which order?' });
+  }
+
+  // The panel sends the state it wants, not a toggle. A toggle would flip the
+  // wrong way if two tabs were open, or if a reply was lost and retried.
+  const shippedAt = body?.shipped === false ? '' : new Date().toISOString();
+
+  const result = await markShipped(stripe, paymentIntent, shippedAt, fetchImpl);
+
+  if (!result.ok) {
+    console.error(`[admin-orders] mark failed: ${result.reason} ${result.detail ?? ''}`);
+
+    const said = [result.status && `HTTP ${result.status}`, result.detail].filter(Boolean).join(' — ');
+    return json(502, { error: `Stripe would not record that (${said}).` });
+  }
+
+  return json(200, { ok: true, shippedAt: shippedAt || null });
+}
+
 export async function handle(request, fetchImpl = fetch) {
-  if (request.method !== 'GET') return methodNotAllowed('GET');
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return methodNotAllowed('GET, POST');
+  }
+
+  // Before anything else: this is names, addresses and what people spent.
   if (!authorized(request)) return json(401, { error: 'Sign in first.' });
+
+  if (request.method === 'POST') return handleShip(request, fetchImpl);
 
   const stripe = readStripeConfig(process.env);
   if (!stripe.ok) {
