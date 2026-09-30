@@ -808,7 +808,7 @@
 
           <label class="label" for="f-handle">Web address</label>
           <input class="field field--mono" id="f-handle" value="${escapeHtml(piece.handle)}" data-field="handle">
-          <p class="hint">stitch-wishes.vercel.app/product?handle=<strong>${escapeHtml(piece.handle)}</strong></p>
+          <p class="hint">${escapeHtml(location.host)}/p/<strong>${escapeHtml(piece.handle)}</strong></p>
 
           <div class="edit-actions">
             <label class="toggle">

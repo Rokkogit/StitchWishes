@@ -93,6 +93,29 @@ test('no page names the town', () => {
   }
 });
 
+test('every page agrees on one site origin', () => {
+  // Moving the site means rewriting the origin in every static page, because a
+  // .html file has nowhere to read its own host from. Missing one ships a page
+  // whose canonical URL and preview image point at a deployment somebody else
+  // owns — which looks completely fine in a browser.
+  const origins = new Set();
+
+  for (const name of ALL) {
+    for (const [, origin] of read(name).matchAll(
+      /(?:rel="canonical" href=|property="og:(?:url|image)" content=|name="twitter:image" content=)"(https:\/\/[^/"]+)/g
+    )) {
+      origins.add(origin);
+    }
+  }
+
+  assert.ok(origins.size > 0, 'no canonical or og tags found at all');
+  assert.equal(
+    origins.size,
+    1,
+    `pages disagree about the origin: ${[...origins].join(', ')} — run scripts/set-site-origin.mjs`
+  );
+});
+
 test('every page asks for the same build of the css and js', () => {
   // A page left on an old ?v= serves a stylesheet that does not match its
   // markup, which is a class of bug that only shows up on one page.

@@ -302,11 +302,20 @@ Two things to know:
   kept so links already sent in a DM do not break. `injectHead` strips that
   `noindex` when rendering `/p/<handle>`. Reversing those two would de-index the
   whole catalog silently, which is why both halves are covered by tests.
-- **The static pages hardcode `https://stitch-wishes.vercel.app`** in their
-  `canonical` and `og:` tags, because a static file has nowhere to read the host
-  from. Open Graph images must be absolute or preview bots ignore them. If a real
-  domain is bought, `grep -rl stitch-wishes.vercel.app stitch-wishes-2050` finds
-  every line to change. The dynamic routes need no change.
+- **The static pages hardcode the site's own origin** in their `canonical` and
+  `og:` tags, because a static file has nowhere to read the host from, and Open
+  Graph images must be absolute or preview bots ignore them. Moving the site
+  means changing all of them:
+
+  ```bash
+  node scripts/set-site-origin.mjs https://new-host.example
+  ```
+
+  That rewrites every reference and leaves the hosts that are supposed to be
+  named — Google Fonts, Instagram, Stripe, schema.org — alone. The dynamic routes
+  (`/p/<handle>`, `/sitemap.xml`, `/robots.txt`) read the host off the request and
+  need no change. `tests/pages.test.mjs` fails if the pages ever disagree about
+  the origin, so a half-finished swap is caught rather than shipped.
 
 `tests/pages.test.mjs` checks each shipped page for a canonical URL, a full
 preview card with an absolute image, links to the policies and terms, and no
