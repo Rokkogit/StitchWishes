@@ -318,8 +318,22 @@ function initBuy(root, product) {
         choices: { ...chosen.choices },
       });
 
+      // Straight to the bag rather than a small "Added" line that is easy to
+      // miss on a phone. The usual objection to this - that it interrupts
+      // browsing - assumes the bag is a dead end; here it carries its own
+      // suggestions and a "keep looking" link back, so it is a better selling
+      // surface than the page being left, not a worse one.
       const added = root.querySelector('[data-added]');
       if (added) added.hidden = false;
+
+      button.disabled = true;
+      button.textContent = 'Added — opening your bag';
+
+      // A beat before leaving, so the button visibly acknowledges the tap
+      // rather than the page appearing to change on its own.
+      window.setTimeout(() => {
+        window.location.href = 'bag.html';
+      }, 260);
     });
   }
 
