@@ -199,6 +199,50 @@ function refreshSelection(root, product) {
 // Three states, and they are genuinely different: something with no price is
 // not for sale yet, something at zero stock is gone, and everything else can
 // go in the bag. Collapsing them would tell a customer the wrong thing.
+/*
+   What sits under the buy button.
+
+   Everything here is a fact someone actually wants before deciding, and all of
+   it is true: the piece is made after the order rather than pulled off a shelf,
+   the wait is three to seven days, postage is flat and the figure comes from
+   the shop's own settings rather than being written into the page.
+
+   The point is removing uncertainty, which is the honest half of selling. A
+   cost discovered at checkout is the most common reason a full bag is
+   abandoned, so the number belongs here, before the bag, where it reassures
+   instead of ambushing.
+
+   There is deliberately no countdown, no "9 people are viewing this" and no
+   invented review. Stock on these is null - made to order, no ceiling - so a
+   scarcity line would be a plain lie, and this shop's whole character is a
+   tribute to somebody's mother. Faking urgency would cheapen the thing being
+   sold. Where stock IS finite, the real number is shown; see buyHtml.
+*/
+function assuranceHtml(product) {
+  const madeToOrder = !Number.isFinite(product.stock);
+
+  const postage =
+    shopShipping && shopShipping.enabled !== false && Number(shopShipping.amount) > 0
+      ? `${formatPrice(Number(shopShipping.amount))} flat postage`
+      : 'Postage shown in your bag';
+
+  const points = [
+    madeToOrder ? 'Made for you after you order' : 'Ready to send',
+    'Arrives in 3&ndash;7 days',
+    postage,
+  ];
+
+  return `
+    <ul class="assure">
+      ${points.map((point) => `<li>${point}</li>`).join('')}
+    </ul>
+    <p class="assure__maker">
+      Made by hand by Abi, one at a time.
+      <a href="about.html">Her story &rarr;</a>
+    </p>
+  `;
+}
+
 function buyHtml(product) {
   const designs = designsOf(product);
 
@@ -232,10 +276,11 @@ function buyHtml(product) {
 
   return `
     ${left}
-    <button class="btn btn-primary" type="button" data-add>Add to bag</button>
+    <button class="btn btn-primary btn-buy" type="button" data-add>Add to bag</button>
     <p class="buy-note" data-added hidden>
       Added. <a href="bag.html">Go to your bag</a>
     </p>
+    ${assuranceHtml(product)}
   `;
 }
 
@@ -481,6 +526,12 @@ async function fetchLiveProducts() {
     if (!response.ok) return null;          // 503 means "use your bundled copy"
 
     const data = await response.json();
+
+    // Kept so the product page can print the real postage figure rather than
+    // one written into the page, which would start lying the first time it was
+    // changed in the admin panel.
+    if (data.shipping) shopShipping = data.shipping;
+
     return Array.isArray(data.products) ? data.products : null;
   } catch {
     return null;
@@ -569,6 +620,11 @@ function renderFilters(root, products, active) {
 }
 
 // Held so a filter click can redraw without another catalog read.
+// Sent with the catalog so the product page can state the real figure. Null
+// until a live read lands, and the strip simply omits the number until then -
+// a wrong price printed confidently is worse than no price.
+let shopShipping = null;
+
 let shopProducts = [];
 let activeFilter = 'all';
 

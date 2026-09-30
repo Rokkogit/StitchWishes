@@ -1745,3 +1745,84 @@ main {
   padding-top: var(--s3);
   border-top: 1px solid var(--line-soft);
 }
+
+/* -------------------------------------------- the buy area, made to sell -- */
+/*
+   What turns a competent page into one that feels worth paying for is not
+   decoration, it is answering the questions someone is already asking: how
+   long, how much to send it, and who is making it. Every line here is true.
+
+   No countdown, no viewer count, no invented review. Stock on these pieces is
+   null - made to order - so a scarcity line would be a lie, and where stock is
+   genuinely finite the real number is already shown above the button.
+*/
+.btn-buy {
+  width: 100%;
+  justify-content: center;
+  padding-block: 0.95rem;
+  font-size: 1rem;
+}
+
+.assure {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.assure li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* A tick drawn in CSS rather than an icon file: no extra request, and it keeps
+   working when the font does not load. */
+.assure li::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.3rem;
+  border-left: 1.5px solid var(--holo-ink);
+  border-bottom: 1.5px solid var(--holo-ink);
+  transform: rotate(-45deg) translateY(-0.1rem);
+  flex: 0 0 auto;
+}
+
+.assure__maker {
+  margin: 0.85rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+
+.assure__maker a {
+  color: var(--holo-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.assure__maker a:hover { text-decoration: underline; }
+
+/* The price carried the mono face, which reads as a spec sheet. On the piece
+   itself it is the number someone is deciding about, so it gets the display
+   face and room to be looked at. */
+.detail__price {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0.15rem 0 var(--s2);
+}
+
+@media (max-width: 560px) {
+  .assure { gap: 0.35rem 0.8rem; }
+  .assure li { font-size: 0.78rem; }
+  .detail__price { font-size: 1.5rem; }
+}

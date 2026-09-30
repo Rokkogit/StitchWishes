@@ -153,6 +153,29 @@ test('the public catalog rejects a POST', async () => {
   assert.equal(response.status, 405);
 });
 
+test('the catalog carries the real shipping figure', async () => {
+  // The product page prints this before anyone reaches the bag. A cost
+  // discovered at checkout is the most common reason a full bag is abandoned,
+  // and a figure written into the page would start lying the first time it was
+  // changed in the admin panel.
+  stub({ items: [piece()] });
+
+  const body = await (await publicCatalog.fetch(new Request('https://x/api/catalog'))).json();
+
+  assert.ok(body.shipping, 'no shipping figure sent with the catalog');
+  assert.equal(typeof body.shipping.amount, 'number');
+});
+
+test('a store with no settings falls back to the default rate, not to nothing', async () => {
+  stub({ items: [piece()] });
+
+  const body = await (await publicCatalog.fetch(new Request('https://x/api/catalog'))).json();
+
+  // $6 is the fallback in lib/settings.mjs.
+  assert.equal(body.shipping.amount, 6);
+  assert.equal(body.shipping.enabled, true);
+});
+
 /* --------------------------------------------------- admin GET /api/admin-catalog */
 
 test('the admin catalog refuses an unauthenticated GET', async () => {

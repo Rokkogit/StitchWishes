@@ -4,7 +4,8 @@
 // browser, so a hidden piece is never delivered to a visitor at all.
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
-import { readCatalog } from '../lib/global-config.mjs';
+import { readStore } from '../lib/global-config.mjs';
+import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
@@ -18,7 +19,7 @@ export default {
   async fetch(request) {
     if (request.method !== 'GET') return methodNotAllowed('GET');
 
-    const result = await readCatalog(process.env);
+    const result = await readStore(process.env);
 
     if (!result.ok) {
       // The storefront keeps a bundled copy and falls back to it. Saying so
@@ -40,6 +41,18 @@ export default {
     // would then refuse.
     const products = fillMissingDesigns(result.products, SEED);
 
-    return json(200, { products: visibleProducts(products) }, { 'Cache-Control': CACHE });
+    return json(
+      200,
+      {
+        products: visibleProducts(products),
+        // The shipping figure goes out with the catalog so the product page can
+        // state it before anyone reaches the bag. A surprise at checkout is the
+        // most common reason a bag is abandoned, and a number printed on a page
+        // has to be the real one - hardcoding it would start lying the first
+        // time it was changed in the admin panel.
+        shipping: (result.settings ?? DEFAULT_SETTINGS).shipping,
+      },
+      { 'Cache-Control': CACHE }
+    );
   },
 };
