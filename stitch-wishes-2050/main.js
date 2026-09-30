@@ -674,15 +674,49 @@ function picksHtml(product) {
   `;
 }
 
+/*
+   Fisher-Yates, not list.sort(() => Math.random() - 0.5). The sort trick is
+   the famous one and it is not a shuffle: comparison sorts call the comparator
+   an unpredictable number of times, so some orderings come up far more often
+   than others. Asked for extremely random, so it may as well actually be.
+*/
+function shuffle(list) {
+  const out = [...list];
+
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+
+  return out;
+}
+
+// Dealt once per page load and then kept. renderAll runs twice - once from the
+// bundled catalog, again when the live one lands - and re-dealing on the
+// second pass would visibly swap the row out a second after arriving, mid
+// drift. Handles rather than products, so the live catalog's own copies are
+// used once it arrives.
+let pickedHandles = null;
+
 function renderPicks(products) {
   const section = document.querySelector('[data-picks]');
   const track = document.querySelector('[data-picks-track]');
   if (!section || !track) return;
 
-  const picks = products
-    .filter((p) => p.hidden !== true && (p.designs?.options?.length ?? 0) > 1)
-    .sort((a, b) => (b.designs?.options?.length ?? 0) - (a.designs?.options?.length ?? 0))
-    .slice(0, 8);
+  // Anything visible with a photograph. A piece with no photograph would draw
+  // an empty frame in a row whose entire job is to be looked at.
+  const eligible = products.filter((p) => p.hidden !== true && (p.images?.length ?? 0) > 0);
+
+  if (!pickedHandles) {
+    pickedHandles = shuffle(eligible)
+      .slice(0, 8)
+      .map((p) => p.handle);
+  }
+
+  // Ordered by the deal, not by catalog order, so the row itself is shuffled
+  // rather than just its membership.
+  const byHandle = new Map(eligible.map((p) => [p.handle, p]));
+  const picks = pickedHandles.map((handle) => byHandle.get(handle)).filter(Boolean);
 
   // Fewer than three and a drifting row looks broken rather than deliberate.
   if (picks.length < 3) {
