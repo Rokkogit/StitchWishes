@@ -6,6 +6,7 @@
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
 import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
+import { validateContent } from '../lib/content.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
@@ -51,6 +52,10 @@ export default {
         // has to be the real one - hardcoding it would start lying the first
         // time it was changed in the admin panel.
         shipping: (result.settings ?? DEFAULT_SETTINGS).shipping,
+        // The site's own words. Sent with the catalog rather than on a route of
+        // their own: every page that wants them is already making this call,
+        // and a second request would be a second chance to be slow.
+        content: validateContent(result.content).value,
       },
       { 'Cache-Control': CACHE }
     );

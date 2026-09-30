@@ -9,9 +9,17 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readConfig, verifyToken, readCookie, COOKIE_NAME } from '../lib/session.mjs';
-import { readStore, readDigest, writeStore, CATALOG_KEY, SETTINGS_KEY } from '../lib/global-config.mjs';
+import {
+  readStore,
+  readDigest,
+  writeStore,
+  CATALOG_KEY,
+  SETTINGS_KEY,
+  CONTENT_KEY,
+} from '../lib/global-config.mjs';
 import { validateCatalog, catalogHealth } from '../lib/catalog.mjs';
 import { validateSettings, DEFAULT_SETTINGS } from '../lib/settings.mjs';
+import { validateContent, DEFAULT_CONTENT, CONTENT_FIELDS } from '../lib/content.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
@@ -72,6 +80,11 @@ async function handleGet() {
     // Defaults rather than null, so the editor always has a shape to draw and
     // a store with no settings yet is not a special case in the browser.
     settings: catalog.settings ?? DEFAULT_SETTINGS,
+    // Defaults rather than null, so the editor always has something to draw and
+    // a store with no content yet is not a special case in the browser.
+    content: validateContent(catalog.content).value,
+    // Sent with the content so the form and the validation cannot drift apart.
+    contentFields: CONTENT_FIELDS,
     seeded: catalog.seeded,
     // Null rather than an error: a missing digest costs conflict detection on
     // the next save, which is worth degrading rather than blocking an edit.
@@ -93,6 +106,9 @@ async function handlePost(request) {
 
   const result = validateCatalog(body?.products);
   const settings = validateSettings(body?.settings);
+  // Never fails: every field falls back to its default rather than refusing,
+  // because losing the site's words over one bad field would be absurd.
+  const content = validateContent(body?.content);
 
   // Both are reported together. Fixing a price only to be told about a fee is
   // the kind of one-at-a-time validation that makes a form miserable.
@@ -123,7 +139,11 @@ async function handlePost(request) {
   // together or not at all.
   const write = await writeStore(
     process.env,
-    { [CATALOG_KEY]: result.value, [SETTINGS_KEY]: settings.value },
+    {
+      [CATALOG_KEY]: result.value,
+      [SETTINGS_KEY]: settings.value,
+      [CONTENT_KEY]: content.value,
+    },
     existing
   );
 

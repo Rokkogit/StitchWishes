@@ -14,6 +14,8 @@
     products: [],      // the working copy
     settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [], tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false } },
     saved: '',         // JSON of the last known server state, for dirty checks
+    content: null,     // the site's own words
+    contentFields: [],  // how to draw the form, sent by the server
     digest: null,
     assets: [],
     health: null,
@@ -44,7 +46,11 @@
 
   // Settings count as unsaved work too: a changed fee with no catalog edit
   // must still light the save bar.
-  const snapshot = () => JSON.stringify({ products: state.products, settings: state.settings });
+  // content included deliberately: without it, editing a headline would not
+  // count as a change, the save bar would never appear, and the edit would be
+  // silently lost on the next load.
+  const snapshot = () =>
+    JSON.stringify({ products: state.products, settings: state.settings, content: state.content });
   const isDirty = () => snapshot() !== state.saved;
 
   // Mirrors lib/catalog.mjs. The server validates regardless — this only
@@ -71,7 +77,15 @@
 
   function saveDraft() {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ products: state.products, settings: state.settings, digest: state.digest }));
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          products: state.products,
+          settings: state.settings,
+          content: state.content,
+          digest: state.digest,
+        })
+      );
     } catch {
       // A full or blocked localStorage costs the draft, not the edit.
     }
@@ -127,6 +141,8 @@
       state.health = data.health ?? null;
       state.digest = data.digest;
       state.settings = data.settings ?? state.settings;
+      state.content = data.content ?? state.content;
+      state.contentFields = data.contentFields ?? [];
       state.products = data.products ?? [];
       state.saved = snapshot();
 
@@ -134,9 +150,18 @@
       // has moved on since, the draft is stale and silently restoring it
       // would resurrect edits made against a different catalog.
       const draft = loadDraft();
-      if (draft && draft.digest === data.digest && JSON.stringify({ products: draft.products, settings: draft.settings ?? state.settings }) !== state.saved) {
+      const draftSnapshot = draft
+        ? JSON.stringify({
+            products: draft.products,
+            settings: draft.settings ?? state.settings,
+            content: draft.content ?? state.content,
+          })
+        : null;
+
+      if (draft && draft.digest === data.digest && draftSnapshot !== state.saved) {
         state.products = draft.products;
         if (draft.settings) state.settings = draft.settings;
+        if (draft.content) state.content = draft.content;
       } else if (draft) {
         clearDraft();
       }
@@ -175,7 +200,12 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products: state.products, settings: state.settings, digest: state.digest }),
+        body: JSON.stringify({
+          products: state.products,
+          settings: state.settings,
+          content: state.content,
+          digest: state.digest,
+        }),
       });
 
       const body = await response.json().catch(() => ({}));
@@ -488,19 +518,157 @@
   // Placeholder until the homepage content model is designed. Says what it is
   // rather than showing an empty panel, which is the failure mode the catalog
   // already taught us.
+  /* ------------------------------------------------------- the site's words */
+  /*
+     Every field the site shows outside a product: the homepage headline, the
+     lede, Abi's story, the materials list, the lines under the buy button.
+     They used to live inside the HTML, which is why this tab said "Not wired
+     up yet" for as long as it did.
+
+     The form draws itself from contentFields, which the server sends. The
+     alternative - writing the fields out here - means two lists that must
+     agree, and they stop agreeing the first time one is edited alone.
+  */
+  function contentFieldHtml(group, field) {
+    const value = state.content?.[group]?.[field.key] ?? '';
+
+    const input = field.long
+      ? `<textarea class="field field--area" rows="3" maxlength="${field.max}"
+             data-content="${escapeHtml(group)}" data-content-key="${escapeHtml(field.key)}"
+             >${escapeHtml(value)}</textarea>`
+      : `<input class="field" type="text" maxlength="${field.max}"
+             value="${escapeHtml(value)}"
+             data-content="${escapeHtml(group)}" data-content-key="${escapeHtml(field.key)}">`;
+
+    return `
+      <label class="content-row">
+        <span class="label">${escapeHtml(field.label)}</span>
+        ${input}
+      </label>
+    `;
+  }
+
+  function materialsHtml() {
+    const list = state.content?.maker?.materials ?? [];
+
+    const rows = list
+      .map(
+        (item, i) => `
+        <div class="material" data-material-index="${i}">
+          <input class="field" type="text" value="${escapeHtml(item)}" maxlength="120"
+                 data-material="${i}">
+          <button class="btn btn-ghost btn-danger" type="button" data-drop-material="${i}"
+                  aria-label="Remove">&times;</button>
+        </div>`
+      )
+      .join('');
+
+    return `
+      <section class="charges">
+        <p class="label">What goes in</p>
+        ${rows || '<p class="charges__empty">Nothing listed yet.</p>'}
+        <button class="btn btn-ghost" type="button" data-add-material>Add a material</button>
+        <p class="hint">Shown as a list on The Maker page.</p>
+      </section>
+    `;
+  }
+
   function renderHomepage() {
+    if (!state.content) {
+      el.homepagePanel.innerHTML = '<p class="charges__empty">Loading…</p>';
+      return;
+    }
+
+    const groups = (state.contentFields ?? [])
+      .map(
+        (group) => `
+        <section class="charges">
+          <p class="label">${escapeHtml(group.label)}</p>
+          ${group.fields.map((field) => contentFieldHtml(group.group, field)).join('')}
+        </section>`
+      )
+      .join('');
+
     el.homepagePanel.innerHTML = `
       <div class="admin-head"><div>
-        <h1>The homepage</h1>
-        <p class="admin-sub">Not wired up yet.</p>
+        <h1>Words</h1>
+        <p class="admin-sub">Everything the site says outside of a piece.</p>
       </div></div>
-      <div class="gate__shell">
-        <p>The homepage text lives inside <code>index.html</code> rather than in
-           the catalog store, so there is nothing here to edit until it is
-           pulled out into content the same way the pieces were.</p>
-        <p>That is the next thing to build.</p>
-      </div>
+
+      ${groups}
+      ${materialsHtml()}
+
+      <p class="hint">
+        Leave a field empty and it goes back to what it said before rather than
+        publishing a blank heading.
+      </p>
     `;
+  }
+
+  function onHomepageInput(event) {
+    const field = event.target.closest('[data-content]');
+    if (field) {
+      const group = field.dataset.content;
+      const key = field.dataset.contentKey;
+
+      state.content = {
+        ...state.content,
+        [group]: { ...state.content[group], [key]: field.value },
+      };
+
+      touch();
+      return;
+    }
+
+    const material = event.target.closest('[data-material]');
+    if (material) {
+      const index = Number(material.dataset.material);
+      const list = [...(state.content.maker.materials ?? [])];
+      list[index] = material.value;
+
+      state.content = {
+        ...state.content,
+        maker: { ...state.content.maker, materials: list },
+      };
+
+      touch();
+    }
+  }
+
+  function onHomepageClick(event) {
+    state.pressing = false;
+
+    if (event.target.closest('[data-add-material]')) {
+      state.content = {
+        ...state.content,
+        maker: {
+          ...state.content.maker,
+          materials: [...(state.content.maker.materials ?? []), ''],
+        },
+      };
+
+      touch();
+      renderHomepage();
+
+      // Land the cursor in the new row rather than making her hunt for it.
+      const rows = el.homepagePanel.querySelectorAll('[data-material]');
+      rows[rows.length - 1]?.focus();
+      return;
+    }
+
+    const drop = event.target.closest('[data-drop-material]');
+    if (drop) {
+      const index = Number(drop.dataset.dropMaterial);
+      const list = (state.content.maker.materials ?? []).filter((_, i) => i !== index);
+
+      state.content = {
+        ...state.content,
+        maker: { ...state.content.maker, materials: list },
+      };
+
+      touch();
+      renderHomepage();
+    }
   }
 
   const showGrid = () => {
@@ -1616,6 +1784,9 @@
     el.homepagePanel = $('[data-homepage]');
 
     el.ordersPanel.addEventListener('click', onOrdersClick);
+
+    el.homepagePanel.addEventListener('input', onHomepageInput);
+    el.homepagePanel.addEventListener('click', onHomepageClick);
 
     el.checkoutPanel.addEventListener('input', onCheckoutInput);
     el.checkoutPanel.addEventListener('click', onCheckoutClick);

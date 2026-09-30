@@ -1363,3 +1363,33 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
   .order__qty { grid-column: 3; }
   .order__money { grid-column: 2 / -1; text-align: right; }
 }
+
+/* ------------------------------------------------------- the words tab -- */
+/*
+   A column of labelled fields rather than a grid. These are sentences, and a
+   sentence wants the width of the panel, not half of it.
+*/
+.content-row {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.content-row .label {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.field--area {
+  width: 100%;
+  resize: vertical;
+  min-height: 4.5rem;
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+
+.material {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}

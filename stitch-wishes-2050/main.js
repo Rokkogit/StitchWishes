@@ -226,9 +226,13 @@ function assuranceHtml(product) {
       ? `${formatPrice(Number(shopShipping.amount))} flat postage`
       : 'Postage shown in your bag';
 
+  // Editable in the Words tab. Falls back to what the site has always said, so
+  // a store with no content yet reads exactly as before.
+  const says = shopCopy?.promises ?? {};
+
   const points = [
-    madeToOrder ? 'Made for you after you order' : 'Ready to send',
-    'Arrives in 3&ndash;7 days',
+    madeToOrder ? escapeHtml(says.madeToOrder || 'Made for you after you order') : 'Ready to send',
+    escapeHtml(says.delivery || 'Arrives in 3–7 days'),
     postage,
   ];
 
@@ -237,7 +241,7 @@ function assuranceHtml(product) {
       ${points.map((point) => `<li>${point}</li>`).join('')}
     </ul>
     <p class="assure__maker">
-      Made by hand by Abi, one at a time.
+      ${escapeHtml(says.maker || 'Made by hand by Abi, one at a time.')}
       <a href="about.html">Her story &rarr;</a>
     </p>
   `;
@@ -534,6 +538,32 @@ function initReveals() {
    the server and repaint only if it disagrees. No spinner, no empty shop if
    the API is unreachable, and edits still appear on the next load. */
 
+/*
+   The site's own words, applied over what the HTML already says.
+
+   The pages ship with the current copy written into them, so they read
+   correctly with no JavaScript, on a slow connection and for a crawler - and
+   there is no flash of empty headings while a fetch is in flight. This only
+   touches a line when the store actually holds something different, which for
+   an unedited site is never.
+
+   textContent rather than innerHTML: this is someone typing into a form, and
+   it should not be able to put markup on the page.
+*/
+function applyCopy(content) {
+  if (!content) return;
+
+  for (const node of document.querySelectorAll('[data-copy]')) {
+    const [group, key] = String(node.dataset.copy).split('.');
+    const value = content?.[group]?.[key];
+
+    if (typeof value !== 'string' || !value) continue;
+    if (node.textContent === value) continue;
+
+    node.textContent = value;
+  }
+}
+
 async function fetchLiveProducts() {
   try {
     const response = await fetch('/api/catalog');
@@ -545,6 +575,11 @@ async function fetchLiveProducts() {
     // one written into the page, which would start lying the first time it was
     // changed in the admin panel.
     if (data.shipping) shopShipping = data.shipping;
+
+    if (data.content) {
+      shopCopy = data.content;
+      applyCopy(shopCopy);
+    }
 
     return Array.isArray(data.products) ? data.products : null;
   } catch {
@@ -638,6 +673,9 @@ function renderFilters(root, products, active) {
 // until a live read lands, and the strip simply omits the number until then -
 // a wrong price printed confidently is worse than no price.
 let shopShipping = null;
+
+// The site's own words, once a live read has landed.
+let shopCopy = null;
 
 let shopProducts = [];
 let activeFilter = 'all';
