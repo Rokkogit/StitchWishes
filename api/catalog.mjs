@@ -7,6 +7,7 @@ import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
 import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { validateContent } from '../lib/content.mjs';
+import { themeVars, validateTheme } from '../lib/theme.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
@@ -56,6 +57,12 @@ export default {
         // their own: every page that wants them is already making this call,
         // and a second request would be a second chance to be slow.
         content: validateContent(result.content).value,
+        // Computed on the server rather than in the page: the browser gets
+        // finished values to set, and never has to know what a preset is.
+        theme: (() => {
+          const theme = validateContent(result.content).value.theme;
+          return { vars: themeVars(theme), sections: validateTheme(theme).value.sections };
+        })(),
       },
       { 'Cache-Control': CACHE }
     );

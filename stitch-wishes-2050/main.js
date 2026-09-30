@@ -550,6 +550,33 @@ function initReveals() {
    textContent rather than innerHTML: this is someone typing into a form, and
    it should not be able to put markup on the page.
 */
+/*
+   The look, applied as custom properties on the root element.
+
+   The stylesheet already reads every colour, corner and spacing step from a
+   token, so this changes the whole site without touching a rule. Set as
+   properties rather than injected as a <style> block: no string building, and
+   nothing that could put CSS text on the page.
+
+   Sections she has switched off are hidden here rather than removed, so
+   switching one back on needs no deploy.
+*/
+function applyTheme(theme) {
+  if (!theme) return;
+
+  const root = document.documentElement;
+
+  for (const [name, value] of Object.entries(theme.vars ?? {})) {
+    root.style.setProperty(name, value);
+  }
+
+  for (const [name, shown] of Object.entries(theme.sections ?? {})) {
+    for (const node of document.querySelectorAll(`[data-section-name="${name}"]`)) {
+      node.hidden = shown === false;
+    }
+  }
+}
+
 function applyCopy(content) {
   if (!content) return;
 
@@ -580,6 +607,8 @@ async function fetchLiveProducts() {
       shopCopy = data.content;
       applyCopy(shopCopy);
     }
+
+    if (data.theme) applyTheme(data.theme);
 
     return Array.isArray(data.products) ? data.products : null;
   } catch {

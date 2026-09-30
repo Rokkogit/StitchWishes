@@ -20,6 +20,7 @@ import {
 import { validateCatalog, catalogHealth } from '../lib/catalog.mjs';
 import { validateSettings, DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { validateContent, DEFAULT_CONTENT, CONTENT_FIELDS } from '../lib/content.mjs';
+import { PRESETS, themeWarnings } from '../lib/theme.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
 import { fillMissingDesigns } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
@@ -85,6 +86,10 @@ async function handleGet() {
     content: validateContent(catalog.content).value,
     // Sent with the content so the form and the validation cannot drift apart.
     contentFields: CONTENT_FIELDS,
+    // The palettes, and anything unreadable about the current one. Computed
+    // here so the panel never has to carry a copy of the colour maths.
+    themePresets: PRESETS,
+    themeWarnings: themeWarnings(validateContent(catalog.content).value.theme),
     seeded: catalog.seeded,
     // Null rather than an error: a missing digest costs conflict detection on
     // the next save, which is worth degrading rather than blocking an edit.

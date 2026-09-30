@@ -17,6 +17,8 @@
     ordersFilter: 'toship',  // what still has to go out is the useful default
     content: null,     // the site's own words
     contentFields: [],  // how to draw the form, sent by the server
+    themePresets: [],
+    themeWarnings: [],
     digest: null,
     assets: [],
     health: null,
@@ -144,6 +146,8 @@
       state.settings = data.settings ?? state.settings;
       state.content = data.content ?? state.content;
       state.contentFields = data.contentFields ?? [];
+      state.themePresets = data.themePresets ?? [];
+      state.themeWarnings = data.themeWarnings ?? [];
       state.products = data.products ?? [];
       state.saved = snapshot();
 
@@ -607,6 +611,7 @@
 
     el.catalogPanel.hidden = name !== 'catalog';
     el.ordersPanel.hidden = name !== 'orders';
+    el.lookPanel.hidden = name !== 'look';
     el.checkoutPanel.hidden = name !== 'checkout';
     el.homepagePanel.hidden = name !== 'homepage';
 
@@ -619,6 +624,7 @@
     if (name === 'homepage') renderHomepage();
     else if (name === 'checkout') renderCheckout();
     else if (name === 'orders') loadOrders();
+    else if (name === 'look') renderLook();
     else render();
   }
 
@@ -760,6 +766,190 @@
         }
       </section>
     `;
+  }
+
+  /* =================================================================
+     The Look tab - colour, shape and which sections appear.
+     ================================================================= */
+  /*
+     The stylesheet reads every colour, corner and spacing step from a custom
+     property, so this changes the entire site without touching a rule.
+
+     Presets rather than a blank colour picker. A picker with nine swatches and
+     no starting point produces something worse than the design it replaced;
+     five palettes that were actually designed, each adjustable afterwards, is
+     the version someone can use.
+  */
+  const THEME_COLOURS = [
+    ['paper', 'Background'],
+    ['ink', 'Text'],
+    ['aurora', 'Accent one'],
+    ['periwinkle', 'Accent two'],
+    ['lilac', 'Accent three'],
+    ['blossom', 'Accent four'],
+    ['peach', 'Accent five'],
+    ['mint', 'Accent six'],
+  ];
+
+  const THEME_SECTIONS = [
+    ['hero', 'Big headline on the front page'],
+    ['featured', 'Row of pieces on the front page'],
+    ['maker', 'Abi’s section on the front page'],
+    ['picks', 'Our picks on the catalog page'],
+  ];
+
+  function theme() {
+    return state.content?.theme ?? null;
+  }
+
+  function setTheme(patch) {
+    state.content = {
+      ...state.content,
+      theme: { ...state.content.theme, ...patch },
+    };
+    touch();
+    renderLook();
+  }
+
+  function renderLook() {
+    const t = theme();
+    if (!t) {
+      el.lookPanel.innerHTML = '<p class="charges__empty">Loading…</p>';
+      return;
+    }
+
+    const presets = (state.themePresets ?? [])
+      .map(
+        (preset) => `
+        <button class="preset${t.preset === preset.id ? ' is-on' : ''}" type="button"
+                data-preset="${escapeHtml(preset.id)}">
+          <span class="preset__swatches">
+            ${['paper', 'aurora', 'lilac', 'blossom', 'ink']
+              .map((key) => `<span style="background:${escapeHtml(preset.tokens[key])}"></span>`)
+              .join('')}
+          </span>
+          <span class="preset__name">${escapeHtml(preset.label)}</span>
+          <span class="preset__note">${escapeHtml(preset.note)}</span>
+        </button>`
+      )
+      .join('');
+
+    const base = (state.themePresets ?? []).find((p) => p.id === t.preset)?.tokens ?? {};
+
+    const colours = THEME_COLOURS.map(([key, label]) => {
+      const value = t.tokens?.[key] ?? base[key] ?? '#000000';
+      const changed = Boolean(t.tokens?.[key]);
+
+      return `
+        <label class="swatchrow">
+          <input type="color" value="${escapeHtml(value)}" data-theme-colour="${escapeHtml(key)}">
+          <span>${escapeHtml(label)}</span>
+          ${changed ? `<button class="btn btn-ghost swatchrow__reset" type="button" data-reset-colour="${escapeHtml(key)}">Reset</button>` : ''}
+        </label>
+      `;
+    }).join('');
+
+    const warnings = (state.themeWarnings ?? [])
+      .map((warning) => `<p class="hint hint--warn">${escapeHtml(warning)}</p>`)
+      .join('');
+
+    el.lookPanel.innerHTML = `
+      <div class="admin-head"><div>
+        <h1>Look</h1>
+        <p class="admin-sub">Colour, shape, and what appears where.</p>
+      </div></div>
+
+      <section class="charges">
+        <p class="label">Start from</p>
+        <div class="presets">${presets}</div>
+        <p class="hint">Pick one, then change anything you like underneath.</p>
+      </section>
+
+      <section class="charges">
+        <p class="label">Colours</p>
+        <div class="swatches-grid">${colours}</div>
+        ${warnings}
+      </section>
+
+      <section class="charges">
+        <p class="label">Shape</p>
+
+        <label class="content-row">
+          <span class="label">Corner roundness &mdash; ${t.radius}px</span>
+          <input type="range" min="0" max="40" value="${t.radius}" data-theme-radius>
+        </label>
+
+        <label class="content-row">
+          <span class="label">Spacing</span>
+          <select class="field" data-theme-density>
+            ${['tight', 'normal', 'airy']
+              .map((d) => `<option value="${d}"${t.density === d ? ' selected' : ''}>${d}</option>`)
+              .join('')}
+          </select>
+        </label>
+      </section>
+
+      <section class="charges">
+        <p class="label">Sections</p>
+        ${THEME_SECTIONS.map(
+          ([key, label]) => `
+          <label class="toggle charges__sub">
+            <input type="checkbox" data-theme-section="${key}" ${t.sections?.[key] !== false ? 'checked' : ''}>
+            <span>${escapeHtml(label)}</span>
+          </label>`
+        ).join('')}
+        <p class="hint">Switching one off hides it. Nothing is deleted.</p>
+      </section>
+
+      <p class="hint">
+        Changes show on the shop after you press Save.
+        <a href="index.html" target="_blank" rel="noopener">Open the shop &rarr;</a>
+      </p>
+    `;
+  }
+
+  function onLookInput(event) {
+    const colour = event.target.closest('[data-theme-colour]');
+    if (colour) {
+      setTheme({ tokens: { ...theme().tokens, [colour.dataset.themeColour]: colour.value } });
+      return;
+    }
+
+    const radius = event.target.closest('[data-theme-radius]');
+    if (radius) {
+      setTheme({ radius: Number(radius.value) });
+      return;
+    }
+
+    const density = event.target.closest('[data-theme-density]');
+    if (density) setTheme({ density: density.value });
+  }
+
+  function onLookClick(event) {
+    state.pressing = false;
+
+    const preset = event.target.closest('[data-preset]');
+    if (preset) {
+      // Switching preset clears the overrides. Keeping them would mean picking
+      // a new palette and seeing most of the old one, which reads as broken.
+      setTheme({ preset: preset.dataset.preset, tokens: {} });
+      return;
+    }
+
+    const reset = event.target.closest('[data-reset-colour]');
+    if (reset) {
+      const tokens = { ...theme().tokens };
+      delete tokens[reset.dataset.resetColour];
+      setTheme({ tokens });
+      return;
+    }
+
+    const section = event.target.closest('[data-theme-section]');
+    if (section) {
+      setTheme({
+        sections: { ...theme().sections, [section.dataset.themeSection]: section.checked },
+      });
+    }
   }
 
   function renderHomepage() {
@@ -2066,6 +2256,10 @@
     el.main = $('[data-catalog]');
     el.catalogPanel = el.main;
     el.ordersPanel = $('[data-orders]');
+    el.lookPanel = $('[data-look]');
+
+    el.lookPanel.addEventListener('input', onLookInput);
+    el.lookPanel.addEventListener('click', onLookClick);
     el.checkoutPanel = $('[data-checkout]');
     el.homepagePanel = $('[data-homepage]');
 
