@@ -1933,3 +1933,78 @@ main {
   .thumb { flex-basis: 2.8rem; width: 2.8rem; }
   .detail h1 { font-size: 1.3rem; }
 }
+
+/* --------------------------------------------- stop the page overflowing -- */
+/*
+   A grid item's automatic minimum size is its content, not zero. So the
+   thumbnail row - nine fixed-width thumbs that deliberately do not wrap -
+   pushed its track wider than the screen, and because both tracks are 1fr the
+   whole layout went with it: the title, the button label, the assurance strip
+   and every line of the description were clipped at the same right edge, and
+   the photograph sat off-centre with dead space beside it because contain
+   centres inside a box wider than the viewport.
+
+   body { overflow-x: hidden } was only hiding it. min-width: 0 is the fix:
+   it lets the track shrink and lets the thumbnail row scroll inside itself,
+   which is what it was always meant to do.
+*/
+.detail > *,
+.gallery,
+.thumbs,
+.assure,
+.chosen {
+  min-width: 0;
+}
+
+.gallery,
+.detail__media,
+.detail__desc {
+  max-width: 100%;
+}
+
+/* ------------------------------------------- the piece, looking its best -- */
+@media (max-width: 560px) {
+  /* The white frame hugs the photograph instead of being a full-width box with
+     a portrait image floating in the middle of it. Centred, so it reads as a
+     deliberate frame rather than a gap. */
+  .detail__media {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    display: grid;
+    place-items: center;
+  }
+
+  .detail__media img {
+    width: auto;
+    max-width: 100%;
+    height: 34vh;
+    max-height: 19rem;
+    object-fit: contain;
+  }
+
+  /* Centred under a centred photograph. justify-content rather than a margin,
+     so a row too wide to fit still starts at the left edge and scrolls. */
+  .thumbs {
+    justify-content: safe center;
+  }
+
+  /* "CHOOSE A DESIGN FIRST" in caps with letter-spacing is a long label on a
+     narrow screen; it was being clipped rather than wrapped. */
+  .btn-buy {
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    white-space: normal;
+    line-height: 1.3;
+  }
+
+  /* Three facts on one line do not fit. Two columns reads as a list rather
+     than as a sentence that ran out of room. */
+  .assure {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem 0.7rem;
+  }
+
+  .assure li { font-size: 0.75rem; }
+}
