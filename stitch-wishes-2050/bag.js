@@ -195,8 +195,42 @@
     `;
   }
 
+  /*
+     A bag with things in it that the shop cannot currently name is NOT an
+     empty bag, and saying "nothing in here yet" to someone who just added
+     something is the worst available answer - they conclude the site lost
+     their basket and leave. The quote already explains itself in `problems`;
+     the old early return threw that away.
+
+     It happens for real reasons: a piece withdrawn between adding and looking,
+     or a catalog store that cannot be reached.
+  */
+  function renderUnavailable() {
+    const problems = (quote?.problems ?? [])
+      .map((problem) => `<li>${escapeHtml(problem.message)}</li>`)
+      .join('');
+
+    el.body.innerHTML = `
+      <div class="bag-empty">
+        <p class="label">Your bag</p>
+        <h1>We can't show your bag right now</h1>
+        <p>What you chose is still saved on this device &mdash; the shop just
+          can't price it at the moment.</p>
+        ${problems ? `<ul class="bag-problems" role="status">${problems}</ul>` : ''}
+        <p>
+          <button class="btn btn-primary" type="button" data-retry>Try again</button>
+          <a class="btn btn-ghost" href="collection.html">Keep looking</a>
+        </p>
+      </div>
+    `;
+  }
+
   function render() {
-    if (!quote || !quote.items.length) return renderEmpty();
+    if (!quote || !quote.items.length) {
+      // Only truly empty if there is nothing on the device either.
+      const held = window.StitchCart?.read()?.length ?? 0;
+      return held > 0 ? renderUnavailable() : renderEmpty();
+    }
 
     // Anything the server removed or reduced is said out loud rather than the
     // bag quietly getting smaller.
