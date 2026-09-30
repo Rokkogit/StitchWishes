@@ -93,7 +93,7 @@ Eleven files name the origin, because a static `.html` has nowhere to read its
 own host from and an Open Graph image must be absolute. One command:
 
 ```bash
-node scripts/set-site-origin.mjs https://new-host.vercel.app
+node scripts/set-site-origin.mjs https://www.stitchwishess.com
 ```
 
 It leaves the hosts that are supposed to be named alone — Google Fonts,
