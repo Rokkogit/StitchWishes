@@ -1826,3 +1826,110 @@ main {
   .assure li { font-size: 0.78rem; }
   .detail__price { font-size: 1.5rem; }
 }
+
+/* ------------------------------------- the piece, on one phone screen ---- */
+/*
+   Everything needed to decide - photograph, the designs, name, price, choose,
+   buy - inside one screen, with no scrolling to reach the button.
+
+   What was eating it: the main photograph is 2/3 aspect, which on a 370px
+   column is 555px tall before anything else exists; nine design thumbnails
+   wrapped onto two rows; and the h1 clamps to a 2.6rem floor, so a long title
+   ran to three lines at 42px each.
+
+   The photograph is object-fit: contain, so capping its height shrinks it
+   rather than cropping - which matters here, because these are pens standing
+   upright and the earlier complaint about this catalog was that their tops
+   were being cut off.
+*/
+@media (max-width: 560px) {
+  .detail {
+    gap: 0.9rem;
+    padding-block: 0.6rem 1.5rem;
+  }
+
+  .detail__media {
+    padding: 6px;
+  }
+
+  .detail__media img {
+    /* A share of the screen rather than a shape. Small enough to leave room
+       for the decision, large enough to still be the thing you look at. */
+    aspect-ratio: auto;
+    height: 34vh;
+    max-height: 20rem;
+    object-fit: contain;
+  }
+
+  .thumbs {
+    /* One row that scrolls, not two that stack. Nine designs on two rows cost
+       150px of a screen that has to hold a decision. */
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .thumbs::-webkit-scrollbar { display: none; }
+
+  .thumb {
+    flex: 0 0 3.2rem;
+    width: 3.2rem;
+    scroll-snap-align: start;
+  }
+
+  /* The wordmark sits in the header two inches above this. Saying it again
+     costs a line of a screen that has none to spare. */
+  /* p.label, not .label: the design row contains a span.label too, and hiding
+     that would take the word DESIGN with it. */
+  .detail > div > p.label:first-child {
+    display: none;
+  }
+
+  .detail h1 {
+    font-size: 1.45rem;
+    line-height: 1.15;
+    margin-bottom: 0.35rem;
+  }
+
+  .detail__price {
+    font-size: 1.35rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .chosen {
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .btn-buy {
+    padding-block: 0.85rem;
+  }
+
+  .assure {
+    margin-top: 0.7rem;
+  }
+
+  .assure__maker {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .detail__desc--after {
+    margin-top: 1.2rem;
+    padding-top: 1.2rem;
+  }
+}
+
+/* Short phones - an SE is 667px tall - give the photograph less again rather
+   than pushing the button off the bottom. */
+@media (max-width: 560px) and (max-height: 720px) {
+  .detail__media img { height: 26vh; }
+  .thumb { flex-basis: 2.8rem; width: 2.8rem; }
+  .detail h1 { font-size: 1.3rem; }
+}
