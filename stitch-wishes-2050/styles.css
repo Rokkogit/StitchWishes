@@ -1737,3 +1737,11 @@ main {
   .addon__title { font-size: 0.84rem; }
   .addon__btn { padding: 0.4rem 0.7rem; font-size: 0.72rem; }
 }
+
+/* The description now sits below the buy button rather than above it, so it
+   needs to read as "more about this" rather than as the next thing to do. */
+.detail__desc--after {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}

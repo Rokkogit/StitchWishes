@@ -628,10 +628,16 @@ function renderAll(products) {
           <p class="label">Stitch Wishess</p>
           <h1>${escapeHtml(product.title)}</h1>
           <p class="detail__price">${formatPrice(product.price)}</p>
-          <div class="detail__desc"><p>${escapeHtml(product.description)}</p></div>
+
+          <!-- Choose, then buy, then read. The descriptions here run to about
+               1,100 characters, which on a phone put the add-to-bag button
+               roughly twenty lines below the price - someone who had already
+               decided had to scroll past the sales pitch to act on it. -->
           ${designStateHtml(product)}
           ${choicesHtml(product)}
           ${buyHtml(product)}
+
+          <div class="detail__desc detail__desc--after"><p>${escapeHtml(product.description)}</p></div>
         </div>
       `;
       initGallery(detail, product);
