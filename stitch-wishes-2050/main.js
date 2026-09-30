@@ -24,10 +24,14 @@ function mediaHtml(product, modifier) {
   const images = product.images ?? [];
   if (!images.length) return emptyMediaHtml(cls);
 
-  // The count tells you there is more to see before you open the piece —
-  // several products carry ten photographs.
-  const count =
-    images.length > 1
+  // What the badge says, in order of how much it helps someone deciding whether
+  // to tap. "8 designs" is a choice you can make; "10 photos" is only pictures.
+  // Several pieces carry both, and the designs are the reason to look.
+  const designs = product.designs?.options?.length ?? 0;
+
+  const count = designs
+    ? `<span class="card__count">${designs} designs</span>`
+    : images.length > 1
       ? `<span class="card__count">${images.length} photos</span>`
       : '';
 

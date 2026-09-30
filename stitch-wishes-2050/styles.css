@@ -1419,3 +1419,96 @@ main {
 .policy li { margin-bottom: 0.5rem; }
 
 .policy a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ------------------------------------------------- shopping on a phone ---- */
+/*
+   The catalog grid is auto-fill with a 15.5rem minimum. On a desktop that is
+   right; on a 390px phone the available width is about 355px, two columns would
+   need roughly 520px, and so exactly one card fits. The catalog read as one
+   product at a time — a column to scroll rather than a shop to browse.
+
+   Two fixed columns below this width instead. The photographs stay 3:4 portrait
+   rather than being squared off, because most of these are beaded pens standing
+   upright and a square crop cuts their heads off.
+*/
+@media (max-width: 560px) {
+  .grid {
+    /* minmax(0, 1fr) rather than 1fr: a long unbroken word in a title would
+       otherwise stretch its column past its share and unbalance the row. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .card {
+    padding: 6px 6px 0.85rem;
+    border-radius: calc(var(--radius) - 4px);
+    /* Backdrop blur costs real frames per element, and this doubles how many
+       are on screen at once. Phones stutter scrolling it, so it comes off. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .card__media {
+    margin-bottom: 0.55rem;
+    border-radius: calc(var(--radius) - 10px);
+  }
+
+  .card__body {
+    padding: 0 0.25rem;
+    gap: 0.3rem;
+  }
+
+  /* Titles in this catalog run to 68 characters. At full size in a 165px card
+     that is six lines, one card becomes twice the height of its neighbour and
+     the rows stop lining up. Two lines, then ellipsis. */
+  .card__title {
+    font-size: 0.82rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card__price {
+    font-size: 0.78rem;
+  }
+
+  .card__count {
+    right: 0.35rem;
+    bottom: 0.35rem;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .card__sold {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* The page heading above the grid eats most of the first screen, so the
+     catalog starts below the fold. Tighten it so products are visible on
+     arrival, which is the whole point of a catalog page. */
+  .page-head {
+    padding-block: var(--s3) var(--s2);
+  }
+
+  .page-head h1 {
+    font-size: clamp(1.9rem, 10vw, 2.6rem);
+  }
+
+  .band-head {
+    margin-bottom: var(--s2);
+  }
+}
+
+/* Very narrow phones still get two columns — a 320px screen leaves about 140px
+   a card, which is tight but still a grid rather than a queue. */
+@media (max-width: 360px) {
+  .grid { gap: 0.55rem; }
+  .card__title { font-size: 0.78rem; }
+}
