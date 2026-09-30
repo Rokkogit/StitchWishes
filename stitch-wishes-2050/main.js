@@ -628,6 +628,67 @@ let shopShipping = null;
 let shopProducts = [];
 let activeFilter = 'all';
 
+/* ------------------------------------------------------------ our picks */
+/*
+   A drifting row above the grid, of the pieces with the most designs. The
+   sub-heading says exactly that, so "Our picks" is a curation with its basis
+   stated rather than a claim nobody can check.
+
+   The motion is one continuous drift rather than a slideshow that jumps. The
+   list is rendered twice and the track travels exactly half its width, so the
+   second copy is under the first at the moment it resets and the loop has no
+   seam. A card appears to swoosh in and out because the viewport is masked at
+   both edges - it fades up as it arrives, is solid across the middle, and
+   fades away as it leaves.
+
+   It pauses when hovered, when focused, and entirely for anyone who has asked
+   their system for less motion.
+*/
+function picksHtml(product) {
+  const image = product.images?.[0];
+  const designs = product.designs?.options?.length ?? 0;
+
+  return `
+    <a class="pick" href="/p/${encodeURIComponent(product.handle)}">
+      <span class="pick__media">
+        ${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : ''}
+        ${designs ? `<span class="pick__count">${designs} designs</span>` : ''}
+      </span>
+      <span class="pick__title">${escapeHtml(product.title)}</span>
+      <span class="pick__price">${formatPrice(product.price)}</span>
+    </a>
+  `;
+}
+
+function renderPicks(products) {
+  const section = document.querySelector('[data-picks]');
+  const track = document.querySelector('[data-picks-track]');
+  if (!section || !track) return;
+
+  const picks = products
+    .filter((p) => p.hidden !== true && (p.designs?.options?.length ?? 0) > 1)
+    .sort((a, b) => (b.designs?.options?.length ?? 0) - (a.designs?.options?.length ?? 0))
+    .slice(0, 8);
+
+  // Fewer than three and a drifting row looks broken rather than deliberate.
+  if (picks.length < 3) {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+
+  const once = picks.map(picksHtml).join('');
+
+  // Twice, so the reset lands on an identical frame. aria-hidden on the copy,
+  // or a screen reader reads the whole row a second time.
+  track.innerHTML = `${once}<span class="picks__copy" aria-hidden="true">${once}</span>`;
+
+  // Speed from the number of cards rather than a fixed duration, so the row
+  // drifts at the same pace whether it holds four pieces or eight.
+  track.style.setProperty('--picks-duration', `${picks.length * 7}s`);
+}
+
 function renderCollection() {
   const grid = document.querySelector('[data-collection]');
   if (!grid) return;
@@ -651,6 +712,8 @@ function renderCollection() {
 
 function renderAll(products) {
   shopProducts = products.filter((p) => p.hidden !== true);
+
+  renderPicks(shopProducts);
 
   renderGrid(document.querySelector('[data-featured]'), products.slice(0, 8));
   renderCollection();
