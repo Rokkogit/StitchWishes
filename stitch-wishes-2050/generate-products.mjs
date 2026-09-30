@@ -116,7 +116,21 @@ const products = raw.products.map((p) => {
 
 // The live collection renders with Shopify's "Alphabetically, A-Z" sort,
 // so mirror that here instead of keeping the API's own order.
-products.sort((a, b) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0));
+// Pinned to the end, whatever the alphabet says. Sorting by title put the one
+// Winnie the Pooh set at the very front of the catalog, purely because its
+// title begins with "A" — and this is a Stitch shop, so the first thing anyone
+// sees should be Stitch.
+//
+// By handle rather than by title, because a title can be edited in the admin
+// panel and a handle is the piece's identity.
+const LAST = new Set(['untitled-apr30_16-33']);
+
+products.sort((a, b) => {
+  const pinned = Number(LAST.has(a.handle)) - Number(LAST.has(b.handle));
+  if (pinned !== 0) return pinned;
+
+  return a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
+});
 
 const out = `// Generated from stitch-products.json by generate-products.mjs
 // Do not hand-edit — re-run the generator if the source catalog changes.

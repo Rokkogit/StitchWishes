@@ -3,44 +3,6 @@
 // Order matches the live store: Shopify "Alphabetically, A-Z" by title.
 window.STITCH_PRODUCTS = [
   {
-    "handle": "untitled-apr30_16-33",
-    "title": "A Special Tribute: The \"Hunny\" Beaded Pens Collection 🍯",
-    "price": 11.99,
-    "images": [
-      "assets/A1218267-C3F4-4554-9F41-0FC4DDB732DE.jpg",
-      "assets/98B66CBA-B4C1-446C-808D-AB4827F2D82F.jpg",
-      "assets/6AE068DA-7041-47FE-BA1D-0684347785EE.jpg",
-      "assets/714E0164-1072-41BD-9881-6E41A06E5CBB.jpg"
-    ],
-    "description": "This collection is more than just stationery—it’s a piece of my heart. Inspired by my mom’s lifelong love for Winnie the Pooh, these handmade beaded pens were created to honor her memory and share a little bit of that \"Hundred Acre Wood\" magic with you. Each pen is thoughtfully designed with high-quality beads and charms that capture the whimsical, sweet essence of Pooh Bear and his friends. Whether you’re journaling, working, or just need a smile during your workday, these pens are a reminder that the people we love are always with us. Product Details: • Design: Features a mix of vibrant, high-quality silicone and acrylic beads. • Writing Experience: Smooth-writing black ink (ballpoint) that is refillable so you can keep the magic going forever. • Aesthetic: A perfect blend of \"sweet and whimsical\"—designed to stand out on any desk. • Handmade: Each pen is hand-assembled with care in my studio. Why You’ll Love It: • Comfort Grip: The beaded texture provides a comfortable feel for long writing sessions. • Unique Gift: A thoughtful gift for teachers, nurses, or any Winnie the Pooh enthusiast in your life. • Support Small: Every purchase from this collection directly supports my journey as an artist and helps keep this special tribute growing.",
-    "designs": {
-      "label": "Design",
-      "options": [
-        {
-          "id": "d1",
-          "name": "Eeyore, Purple Glitter",
-          "image": "assets/98B66CBA-B4C1-446C-808D-AB4827F2D82F.jpg",
-          "price": null,
-          "stock": null
-        },
-        {
-          "id": "d2",
-          "name": "Tigger, Gold Glitter",
-          "image": "assets/6AE068DA-7041-47FE-BA1D-0684347785EE.jpg",
-          "price": null,
-          "stock": null
-        },
-        {
-          "id": "d3",
-          "name": "Pooh & Balloon",
-          "image": "assets/714E0164-1072-41BD-9881-6E41A06E5CBB.jpg",
-          "price": null,
-          "stock": null
-        }
-      ]
-    }
-  },
-  {
     "handle": "untitled-may1_12-21",
     "title": "Blue Alien Beaded Pen Classics(not fuzzy)",
     "price": 12.99,
@@ -544,5 +506,43 @@ window.STITCH_PRODUCTS = [
         ]
       }
     ]
+  },
+  {
+    "handle": "untitled-apr30_16-33",
+    "title": "A Special Tribute: The \"Hunny\" Beaded Pens Collection 🍯",
+    "price": 11.99,
+    "images": [
+      "assets/A1218267-C3F4-4554-9F41-0FC4DDB732DE.jpg",
+      "assets/98B66CBA-B4C1-446C-808D-AB4827F2D82F.jpg",
+      "assets/6AE068DA-7041-47FE-BA1D-0684347785EE.jpg",
+      "assets/714E0164-1072-41BD-9881-6E41A06E5CBB.jpg"
+    ],
+    "description": "This collection is more than just stationery—it’s a piece of my heart. Inspired by my mom’s lifelong love for Winnie the Pooh, these handmade beaded pens were created to honor her memory and share a little bit of that \"Hundred Acre Wood\" magic with you. Each pen is thoughtfully designed with high-quality beads and charms that capture the whimsical, sweet essence of Pooh Bear and his friends. Whether you’re journaling, working, or just need a smile during your workday, these pens are a reminder that the people we love are always with us. Product Details: • Design: Features a mix of vibrant, high-quality silicone and acrylic beads. • Writing Experience: Smooth-writing black ink (ballpoint) that is refillable so you can keep the magic going forever. • Aesthetic: A perfect blend of \"sweet and whimsical\"—designed to stand out on any desk. • Handmade: Each pen is hand-assembled with care in my studio. Why You’ll Love It: • Comfort Grip: The beaded texture provides a comfortable feel for long writing sessions. • Unique Gift: A thoughtful gift for teachers, nurses, or any Winnie the Pooh enthusiast in your life. • Support Small: Every purchase from this collection directly supports my journey as an artist and helps keep this special tribute growing.",
+    "designs": {
+      "label": "Design",
+      "options": [
+        {
+          "id": "d1",
+          "name": "Eeyore, Purple Glitter",
+          "image": "assets/98B66CBA-B4C1-446C-808D-AB4827F2D82F.jpg",
+          "price": null,
+          "stock": null
+        },
+        {
+          "id": "d2",
+          "name": "Tigger, Gold Glitter",
+          "image": "assets/6AE068DA-7041-47FE-BA1D-0684347785EE.jpg",
+          "price": null,
+          "stock": null
+        },
+        {
+          "id": "d3",
+          "name": "Pooh & Balloon",
+          "image": "assets/714E0164-1072-41BD-9881-6E41A06E5CBB.jpg",
+          "price": null,
+          "stock": null
+        }
+      ]
+    }
   }
 ];
