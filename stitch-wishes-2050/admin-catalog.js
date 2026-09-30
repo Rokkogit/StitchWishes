@@ -680,6 +680,88 @@
     `;
   }
 
+  /* ------------------------------------------------------------ categories */
+  /*
+     Labels are editable; ids are not. A product points at an id, so changing
+     one would quietly unfile every piece in that category. Renaming is a word
+     change and safe; the id is the identity.
+  */
+  function categoriesHtml() {
+    const list = state.content?.categories ?? [];
+
+    const rows = list
+      .map(
+        (category, i) => `
+        <div class="material">
+          <input class="field" type="text" value="${escapeHtml(category.label)}" maxlength="120"
+                 data-category-label="${i}" aria-label="Name">
+          <button class="btn btn-ghost btn-danger" type="button"
+                  data-drop-category="${i}" aria-label="Remove">&times;</button>
+        </div>`
+      )
+      .join('');
+
+    return `
+      <section class="charges">
+        <p class="label">Kinds of thing</p>
+        ${rows || '<p class="charges__empty">None yet.</p>'}
+        <button class="btn btn-ghost" type="button" data-add-category>Add a kind</button>
+        <p class="hint">
+          These are the filter chips on the catalog page. Renaming one is safe.
+          Removing one leaves any piece filed under it showing under no chip.
+        </p>
+      </section>
+    `;
+  }
+
+  /* -------------------------------------------------------------- curation */
+  function pickerHtml(name, chosen, limit) {
+    const picked = new Set(chosen);
+
+    const options = state.products
+      .filter((piece) => !piece.hidden)
+      .map(
+        (piece) => `
+        <label class="pickbox${picked.has(piece.handle) ? ' is-on' : ''}">
+          <input type="checkbox" ${picked.has(piece.handle) ? 'checked' : ''}
+                 data-curate="${escapeHtml(name)}" value="${escapeHtml(piece.handle)}">
+          <span>${escapeHtml(piece.title)}</span>
+        </label>`
+      )
+      .join('');
+
+    return `
+      <div class="pickboxes">${options}</div>
+      <p class="hint">${chosen.length} chosen${limit ? ` of ${limit} shown` : ''}. Leave none selected to decide automatically.</p>
+    `;
+  }
+
+  function curationHtml() {
+    const curation = state.content?.curation ?? { featured: [], picks: [], picksMode: 'random' };
+
+    return `
+      <section class="charges">
+        <p class="label">On the front page</p>
+        ${pickerHtml('featured', curation.featured ?? [], 8)}
+      </section>
+
+      <section class="charges">
+        <p class="label">Our picks, on the catalog page</p>
+
+        <label class="toggle charges__sub">
+          <input type="checkbox" data-picks-mode ${curation.picksMode === 'chosen' ? 'checked' : ''}>
+          <span>Choose them myself</span>
+        </label>
+
+        ${
+          curation.picksMode === 'chosen'
+            ? pickerHtml('picks', curation.picks ?? [], 0)
+            : '<p class="hint">A different handful of pieces every time someone looks.</p>'
+        }
+      </section>
+    `;
+  }
+
   function renderHomepage() {
     if (!state.content) {
       el.homepagePanel.innerHTML = '<p class="charges__empty">Loading…</p>';
@@ -704,6 +786,8 @@
 
       ${groups}
       ${materialsHtml()}
+      ${categoriesHtml()}
+      ${curationHtml()}
 
       <p class="hint">
         Leave a field empty and it goes back to what it said before rather than
@@ -723,6 +807,17 @@
         [group]: { ...state.content[group], [key]: field.value },
       };
 
+      touch();
+      return;
+    }
+
+    const categoryLabel = event.target.closest('[data-category-label]');
+    if (categoryLabel) {
+      const index = Number(categoryLabel.dataset.categoryLabel);
+      const list = [...(state.content.categories ?? [])];
+      list[index] = { ...list[index], label: categoryLabel.value };
+
+      state.content = { ...state.content, categories: list };
       touch();
       return;
     }
@@ -760,6 +855,77 @@
       // Land the cursor in the new row rather than making her hunt for it.
       const rows = el.homepagePanel.querySelectorAll('[data-material]');
       rows[rows.length - 1]?.focus();
+      return;
+    }
+
+    const curate = event.target.closest('[data-curate]');
+    if (curate) {
+      const name = curate.dataset.curate;
+      const current = state.content.curation?.[name] ?? [];
+
+      const next = curate.checked
+        ? [...current, curate.value]
+        : current.filter((handle) => handle !== curate.value);
+
+      state.content = {
+        ...state.content,
+        curation: { ...state.content.curation, [name]: next },
+      };
+
+      touch();
+      renderHomepage();
+      return;
+    }
+
+    const mode = event.target.closest('[data-picks-mode]');
+    if (mode) {
+      state.content = {
+        ...state.content,
+        curation: {
+          ...state.content.curation,
+          picksMode: mode.checked ? 'chosen' : 'random',
+        },
+      };
+
+      touch();
+      renderHomepage();
+      return;
+    }
+
+    if (event.target.closest('[data-add-category]')) {
+      const list = [...(state.content.categories ?? [])];
+
+      // An id that cannot collide with an existing one, and that never changes
+      // again - products will point at it.
+      const id = `kind-${Date.now().toString(36)}`;
+      list.push({ id, label: 'New kind' });
+
+      state.content = { ...state.content, categories: list };
+      touch();
+      renderHomepage();
+
+      const rows = el.homepagePanel.querySelectorAll('[data-category-label]');
+      rows[rows.length - 1]?.select();
+      return;
+    }
+
+    const dropCategory = event.target.closest('[data-drop-category]');
+    if (dropCategory) {
+      const index = Number(dropCategory.dataset.dropCategory);
+      const category = state.content.categories[index];
+      const filed = state.products.filter((piece) => piece.category === category.id).length;
+
+      if (filed && !window.confirm(`${filed} piece${filed === 1 ? '' : 's'} are filed under "${category.label}". Remove it anyway? They will show under no chip.`)) {
+        return;
+      }
+
+      state.content = {
+        ...state.content,
+        categories: state.content.categories.filter((_, i) => i !== index),
+      };
+
+      touch();
+      renderHomepage();
       return;
     }
 
@@ -1080,6 +1246,19 @@
           <textarea class="field field--desc" id="f-desc" rows="9" data-field="description">${escapeHtml(piece.description)}</textarea>
 
           ${designsHtml(piece)}
+
+          <label class="label" for="f-category">Kind</label>
+          <select class="field" id="f-category" data-field="category">
+            <option value="">Not filed anywhere</option>
+            ${(state.content?.categories ?? [])
+              .map(
+                (category) => `<option value="${escapeHtml(category.id)}"${
+                  piece.category === category.id ? ' selected' : ''
+                }>${escapeHtml(category.label)}</option>`
+              )
+              .join('')}
+          </select>
+          <p class="hint">Decides which filter chip it appears under in the catalog.</p>
 
           <label class="label" for="f-handle">Web address</label>
           <input class="field field--mono" id="f-handle" value="${escapeHtml(piece.handle)}" data-field="handle">

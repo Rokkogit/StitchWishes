@@ -47,13 +47,32 @@ test('a category survives an admin save', () => {
   assert.equal(saved.value.category, SEED[0].category);
 });
 
-test('an unrecognised category is dropped, not refused', () => {
+test('any slug is accepted, because categories are made in the panel now', () => {
+  // A fixed list here would reject a category the moment somebody created one.
+  const made = validateProduct({ ...SEED[0], category: 'kind-abc123' });
+
+  assert.equal(made.ok, true);
+  assert.equal(made.value.category, 'kind-abc123');
+});
+
+test('something that is not a slug is dropped, not refused', () => {
   // It only decides which chip a piece sits under. Losing the piece from the
   // catalog over a bad label would be wildly out of proportion.
-  const odd = validateProduct({ ...SEED[0], category: 'nonsense' });
+  for (const bad of ['Not A Slug!', 'has spaces', '-leading', 'x'.repeat(40), 42, null, {}]) {
+    const odd = validateProduct({ ...SEED[0], category: bad });
 
-  assert.equal(odd.ok, true);
-  assert.equal(odd.value.category, null);
+    assert.equal(odd.ok, true, JSON.stringify(bad));
+    assert.equal(odd.value.category, null, JSON.stringify(bad));
+  }
+});
+
+test('a piece filed under a category nobody kept just shows under no chip', () => {
+  // Removing a category must not take its pieces off the site.
+  const orphan = validateProduct({ ...SEED[0], category: 'deleted-kind' });
+
+  assert.equal(orphan.ok, true);
+  assert.equal(orphan.value.category, 'deleted-kind');
+  assert.ok(orphan.value.title, 'the piece itself survived');
 });
 
 test('no category is left empty in the shipped catalog', () => {

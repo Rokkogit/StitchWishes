@@ -628,7 +628,9 @@ function goesWellWith(product, all, limit = 4) {
 /* -------------------------------------------------------------- filtering */
 
 function categoriesInUse(products) {
-  const defined = window.STITCH_CATEGORIES ?? [];
+  // From the store once a live read lands, else the copy bundled with the
+  // site. Editable in the admin panel either way.
+  const defined = shopCopy?.categories ?? window.STITCH_CATEGORIES ?? [];
   const counts = new Map();
 
   for (const product of products) {
@@ -736,6 +738,21 @@ function shuffle(list) {
 // used once it arrives.
 let pickedHandles = null;
 
+// Chosen in the panel, or the first eight if nobody has chosen. A handle that
+// no longer matches anything is skipped rather than leaving a hole - a piece
+// can be hidden and shown again, so the choice is kept either way.
+function featuredFrom(products) {
+  const chosen = shopCopy?.curation?.featured ?? [];
+  if (!chosen.length) return products.slice(0, 8);
+
+  const byHandle = new Map(products.map((p) => [p.handle, p]));
+  const picked = chosen.map((handle) => byHandle.get(handle)).filter(Boolean);
+
+  // Everything chosen has gone. Falling back beats showing an empty row where
+  // a row of pieces used to be.
+  return picked.length ? picked : products.slice(0, 8);
+}
+
 function renderPicks(products) {
   const section = document.querySelector('[data-picks]');
   const track = document.querySelector('[data-picks-track]');
@@ -745,7 +762,13 @@ function renderPicks(products) {
   // an empty frame in a row whose entire job is to be looked at.
   const eligible = products.filter((p) => p.hidden !== true && (p.images?.length ?? 0) > 0);
 
-  if (!pickedHandles) {
+  const curation = shopCopy?.curation;
+
+  if (curation?.picksMode === 'chosen' && curation.picks?.length) {
+    // Chosen, and in the order they were chosen. Dealing them would throw away
+    // the one thing choosing them was for.
+    pickedHandles = curation.picks;
+  } else if (!pickedHandles) {
     pickedHandles = shuffle(eligible)
       .slice(0, 8)
       .map((p) => p.handle);
@@ -801,7 +824,7 @@ function renderAll(products) {
 
   renderPicks(shopProducts);
 
-  renderGrid(document.querySelector('[data-featured]'), products.slice(0, 8));
+  renderGrid(document.querySelector('[data-featured]'), featuredFrom(products));
   renderCollection();
 
   const detail = document.querySelector('[data-product-detail]');
