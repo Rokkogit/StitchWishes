@@ -137,6 +137,64 @@
     `;
   }
 
+  /* ---------------------------------------------------- suggestive selling */
+  /*
+     Postage is charged once per order and it is already in this total. So a
+     small piece added now costs only the piece — which is true, specific, and
+     the most persuasive thing that can honestly be said at this point. It is
+     not a trick: adding nothing leaves the total exactly as it is.
+
+     The cheapest pieces not already in the bag, three of them.
+  */
+  function suggestionsHtml() {
+    const catalog = window.STITCH_PRODUCTS ?? [];
+    if (!catalog.length) return '';
+
+    const inBag = new Set((quote.items ?? []).map((item) => item.handle));
+
+    const candidates = catalog
+      .filter((p) => p.hidden !== true && !inBag.has(p.handle) && p.stock !== 0)
+      .filter((p) => Number.isFinite(Number(p.price)))
+      .sort((a, b) => Number(a.price) - Number(b.price))
+      .slice(0, 3);
+
+    if (!candidates.length) return '';
+
+    const row = (product) => {
+      const image = product.images?.[0];
+
+      // A piece with designs cannot be added blind - checkout would refuse it
+      // with "choose a design", which is a worse experience than one more tap.
+      // So those link to the piece; only a single-version piece adds directly.
+      const hasDesigns = (product.designs?.options ?? []).length > 0;
+
+      const action = hasDesigns
+        ? `<a class="btn btn-ghost addon__btn" href="/p/${encodeURIComponent(product.handle)}">Choose</a>`
+        : `<button class="btn btn-ghost addon__btn" type="button" data-add="${escapeHtml(product.handle)}">Add</button>`;
+
+      return `
+        <li class="addon">
+          <a class="addon__media" href="/p/${encodeURIComponent(product.handle)}">
+            ${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : ''}
+          </a>
+          <div class="addon__body">
+            <a class="addon__title" href="/p/${encodeURIComponent(product.handle)}">${escapeHtml(product.title)}</a>
+            <span class="addon__price">${money(product.price)}</span>
+          </div>
+          ${action}
+        </li>
+      `;
+    };
+
+    return `
+      <section class="addons">
+        <p class="label">Add a little something</p>
+        <p class="addons__why">Postage is already covered by this order, so anything you add costs just the piece.</p>
+        <ul class="addons__list">${candidates.map(row).join('')}</ul>
+      </section>
+    `;
+  }
+
   function render() {
     if (!quote || !quote.items.length) return renderEmpty();
 
@@ -155,6 +213,8 @@
           ${problems ? `<ul class="bag-problems" role="status">${problems}</ul>` : ''}
 
           <ul class="bag-items">${quote.items.map(itemHtml).join('')}</ul>
+
+          ${suggestionsHtml()}
         </div>
 
         <aside class="bag-total">
@@ -208,6 +268,12 @@
     const drop = hit('data-drop');
     if (drop) {
       window.StitchCart.remove(drop.dataset.drop, designOf(drop));
+      return price();
+    }
+
+    const add = hit('data-add');
+    if (add) {
+      window.StitchCart.add(add.dataset.add, 1);
       return price();
     }
 

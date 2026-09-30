@@ -301,12 +301,43 @@ function initGallery(root, product) {
   });
 }
 
+// The designs, shown rather than counted. This catalog's whole character is
+// that a piece comes in eight versions and each one is its own photograph;
+// a card that says "8 designs" in text is hiding the reason to look.
+//
+// Four, then a remainder. Five thumbnails on a phone card is already a row of
+// 28px squares, and past that they stop being recognisable as anything.
+function swatchesHtml(product) {
+  const options = product.designs?.options ?? [];
+  if (options.length < 2) return '';
+
+  const shown = options.slice(0, 4);
+  const rest = options.length - shown.length;
+
+  const thumbs = shown
+    .map(
+      (option) => `
+      <span class="swatch${option.stock === 0 ? ' is-gone' : ''}">
+        <img src="${escapeHtml(option.image)}" alt="" loading="lazy" width="40" height="40">
+      </span>`
+    )
+    .join('');
+
+  return `
+    <div class="swatches" aria-hidden="true">
+      ${thumbs}
+      ${rest > 0 ? `<span class="swatch swatch--more">+${rest}</span>` : ''}
+    </div>
+  `;
+}
+
 function cardHtml(product) {
   return `
     <a class="card" href="/p/${encodeURIComponent(product.handle)}">
       ${mediaHtml(product)}
       <div class="card__body">
         <h3 class="card__title">${escapeHtml(product.title)}</h3>
+        ${swatchesHtml(product)}
         <p class="card__price">${formatPrice(product.price)}</p>
       </div>
     </a>
@@ -316,16 +347,6 @@ function cardHtml(product) {
 function renderGrid(el, products) {
   if (el) el.innerHTML = products.map(cardHtml).join('');
 }
-
-function pickRandom(products, count, exclude) {
-  const pool = products.filter((p) => p.handle !== exclude);
-  const picked = [];
-  while (picked.length < count && pool.length) {
-    picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-  }
-  return picked;
-}
-
 /* ------------------------------------------------------------------ clouds */
 
 function initClouds() {
@@ -466,9 +487,117 @@ async function fetchLiveProducts() {
   }
 }
 
+/* ------------------------------------------------------ suggestive selling */
+/*
+   What used to sit under a piece was four products picked at random, which is
+   not a suggestion so much as a shuffle. These are chosen.
+
+   The rule is cross-sell, not more-of-the-same: something from a DIFFERENT
+   category that costs LESS than what is being looked at. Someone deciding on a
+   $16.99 sign is not helped by three more signs; they are helped by a $9
+   keychain they had not thought of. Same-category pieces fill the row only if
+   there are not enough of those, because an empty row is worse.
+*/
+function goesWellWith(product, all, limit = 4) {
+  const others = all.filter((p) => p.handle !== product.handle && p.hidden !== true);
+
+  const price = Number(product.price) || 0;
+  const category = product.category ?? null;
+
+  const cheaperElsewhere = others.filter(
+    (p) => p.category !== category && (Number(p.price) || 0) <= price
+  );
+
+  // Closest in price first: a $12 add-on to a $17 piece reads as a pairing,
+  // where the very cheapest thing in the shop reads as a consolation prize.
+  cheaperElsewhere.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+
+  const picked = cheaperElsewhere.slice(0, limit);
+  if (picked.length >= limit) return picked;
+
+  // Top up, still deliberately: anything else not already chosen.
+  const taken = new Set(picked.map((p) => p.handle));
+  for (const p of others) {
+    if (picked.length >= limit) break;
+    if (!taken.has(p.handle)) picked.push(p);
+  }
+
+  return picked;
+}
+
+/* -------------------------------------------------------------- filtering */
+
+function categoriesInUse(products) {
+  const defined = window.STITCH_CATEGORIES ?? [];
+  const counts = new Map();
+
+  for (const product of products) {
+    if (product.hidden === true) continue;
+    if (!product.category) continue;
+    counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
+  }
+
+  // Only chips that lead somewhere. A filter returning an empty grid is a dead
+  // end, and hiding the last piece in a category should take its chip with it.
+  return defined.filter((c) => counts.has(c.id)).map((c) => ({ ...c, count: counts.get(c.id) }));
+}
+
+function renderFilters(root, products, active) {
+  if (!root) return;
+
+  const categories = categoriesInUse(products);
+
+  // One category is not a choice, so there is nothing to offer.
+  if (categories.length < 2) {
+    root.innerHTML = '';
+    return;
+  }
+
+  const chip = (id, label, count) => `
+    <button class="chip${active === id ? ' is-on' : ''}" type="button"
+            data-filter="${escapeHtml(id)}"
+            aria-pressed="${active === id}">
+      ${escapeHtml(label)} <span class="chip__count">${count}</span>
+    </button>
+  `;
+
+  const total = products.filter((p) => p.hidden !== true).length;
+
+  root.innerHTML =
+    chip('all', 'Everything', total) +
+    categories.map((c) => chip(c.id, c.label, c.count)).join('');
+}
+
+// Held so a filter click can redraw without another catalog read.
+let shopProducts = [];
+let activeFilter = 'all';
+
+function renderCollection() {
+  const grid = document.querySelector('[data-collection]');
+  if (!grid) return;
+
+  const shown =
+    activeFilter === 'all'
+      ? shopProducts
+      : shopProducts.filter((p) => p.category === activeFilter);
+
+  renderFilters(document.querySelector('[data-filters]'), shopProducts, activeFilter);
+  renderGrid(grid, shown);
+
+  const note = document.querySelector('[data-filter-note]');
+  if (note) {
+    note.textContent =
+      activeFilter === 'all'
+        ? `${shown.length} pieces`
+        : `${shown.length} ${shown.length === 1 ? 'piece' : 'pieces'}`;
+  }
+}
+
 function renderAll(products) {
+  shopProducts = products.filter((p) => p.hidden !== true);
+
   renderGrid(document.querySelector('[data-featured]'), products.slice(0, 8));
-  renderGrid(document.querySelector('[data-collection]'), products);
+  renderCollection();
 
   const detail = document.querySelector('[data-product-detail]');
   if (detail) {
@@ -507,7 +636,7 @@ function renderAll(products) {
       `;
       initGallery(detail, product);
       initBuy(detail, product);
-      renderGrid(document.querySelector('[data-related]'), pickRandom(products, 4, product.handle));
+      renderGrid(document.querySelector('[data-related]'), goesWellWith(product, products, 4));
     }
   }
 }
@@ -530,10 +659,28 @@ function initThanks() {
   slot.hidden = false;
 }
 
+function initFilters() {
+  const bar = document.querySelector('[data-filters]');
+  if (!bar) return;
+
+  bar.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-filter]');
+    if (!chip) return;
+
+    activeFilter = chip.dataset.filter;
+    renderCollection();
+
+    // Re-run the reveal animation on the cards that just appeared, or a
+    // filtered grid arrives invisible.
+    initReveals();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const bundled = window.STITCH_PRODUCTS || [];
 
   initThanks();
+  initFilters();
   renderAll(bundled);
   initClouds();
   initThread();

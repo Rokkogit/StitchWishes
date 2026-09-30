@@ -1512,3 +1512,228 @@ main {
   .grid { gap: 0.55rem; }
   .card__title { font-size: 0.78rem; }
 }
+
+/* ----------------------------------------------------------- filters ---- */
+/*
+   Fifteen pieces in one flat grid reads as a pile. The same fifteen behind five
+   chips reads as a shop with a range — which it is: pens, wall pieces, things
+   for a car, desk pieces, keychains.
+
+   Rendered from the categories actually present, so a chip never leads to an
+   empty grid, and the whole bar disappears if there is only one kind left.
+*/
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.filters:empty { display: none; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.chip:hover {
+  color: var(--ink);
+  border-color: var(--holo-ink);
+  transform: translateY(-1px);
+}
+
+.chip.is-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.chip__count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  opacity: 0.65;
+}
+
+.filters__note {
+  margin: 0 0 var(--s2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ---------------------------------------------------------- swatches ---- */
+/*
+   The designs, shown instead of counted. A card that says "8 designs" is
+   hiding the reason to look; four thumbnails and a remainder is the reason
+   itself. Decorative, so it is aria-hidden — the count already reads on the
+   photograph and every design is named on the piece's own page.
+*/
+.swatches {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.15rem 0 0.1rem;
+}
+
+.swatch {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 7px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-soft);
+  background: var(--aurora);
+}
+
+.swatch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.swatch.is-gone { opacity: 0.35; }
+
+.swatch--more {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+@media (max-width: 560px) {
+  .swatches { gap: 0.22rem; margin-top: 0.1rem; }
+  .swatch { width: 1.6rem; height: 1.6rem; border-radius: 5px; }
+  .swatch--more { font-size: 0.5rem; }
+
+  .chip {
+    padding: 0.42rem 0.7rem;
+    font-size: 0.74rem;
+  }
+
+  .filters {
+    /* One scrollable row rather than three stacked ones eating the screen
+       before any product is visible. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(var(--s3) * -1);
+    padding-inline: var(--s3);
+  }
+
+  .filters::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; }
+}
+
+/* ------------------------------------------------------- bag add-ons ---- */
+/*
+   Postage is charged once per order and is already in the total by the time
+   anyone reads this, so a small piece added here really does cost only the
+   piece. That is worth saying plainly - it is the honest version of the
+   nudge, and it happens to be the persuasive one.
+*/
+.addons {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.addons__why {
+  margin: 0 0 var(--s2);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  text-wrap: pretty;
+}
+
+.addons__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.addon {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--paper-raised);
+}
+
+.addon__media {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--aurora);
+  display: block;
+}
+
+.addon__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.addon__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.addon__title {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.25;
+  /* These titles run long; two lines keeps every row the same height. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.addon__title:hover { color: var(--holo-ink); }
+
+.addon__price {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.addon__btn {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .addon {
+    grid-template-columns: 2.6rem 1fr auto;
+    gap: 0.6rem;
+  }
+  .addon__media { width: 2.6rem; height: 2.6rem; }
+  .addon__title { font-size: 0.84rem; }
+  .addon__btn { padding: 0.4rem 0.7rem; font-size: 0.72rem; }
+}

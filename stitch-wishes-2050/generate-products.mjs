@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
 import { nameFor } from '../lib/design-names.mjs';
+import { categoryOf, CATEGORIES } from '../lib/categories.mjs';
 
 const raw = JSON.parse(readFileSync('../stitch-products.json', 'utf-8'));
 
@@ -109,6 +110,9 @@ const products = raw.products.map((p) => {
     price,
     images: resolveImages(p.images),
     description: stripHtml(p.body_html ?? ''),
+    // What kind of thing it is. The source has no categories at all, so these
+    // are assigned by hand in lib/categories.mjs.
+    category: categoryOf(p),
     ...(designs ? { designs } : {}),
     ...(choices.length ? { choices } : {}),
   };
@@ -134,8 +138,12 @@ products.sort((a, b) => {
 
 const out = `// Generated from stitch-products.json by generate-products.mjs
 // Do not hand-edit — re-run the generator if the source catalog changes.
-// Order matches the live store: Shopify "Alphabetically, A-Z" by title.
+// Order is alphabetical by title, with the one non-Stitch set pinned last.
 window.STITCH_PRODUCTS = ${JSON.stringify(products, null, 2)};
+
+// Emitted rather than repeated in main.js, so the labels on the filter chips
+// and the categories written onto the products can never drift apart.
+window.STITCH_CATEGORIES = ${JSON.stringify(CATEGORIES, null, 2)};
 `;
 
 writeFileSync('products.js', out, 'utf-8');

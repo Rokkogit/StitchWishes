@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=holo35">
+  <link rel="stylesheet" href="styles.css?v=holo36">
   <link rel="canonical" href="https://www.stitchwishess.com/collection">
 
   <!-- Link previews. Instagram, iMessage, WhatsApp and Slack read these and
@@ -51,6 +51,11 @@
     </section>
 
     <section class="band band--tight wrap" data-section="All pieces">
+      <!-- Filled by main.js from the categories the catalog actually uses, so
+           a chip never leads to an empty grid. -->
+      <div class="filters" data-filters role="group" aria-label="Filter by kind"></div>
+      <p class="filters__note" data-filter-note aria-live="polite"></p>
+
       <div class="grid reveal" data-collection></div>
     </section>
   </main>
@@ -88,8 +93,8 @@
     </div>
   </footer>
 
-  <script src="products.js?v=holo35"></script>
-  <script src="cart.js?v=holo35"></script>
-  <script src="main.js?v=holo35"></script>
+  <script src="products.js?v=holo36"></script>
+  <script src="cart.js?v=holo36"></script>
+  <script src="main.js?v=holo36"></script>
 </body>
 </html>
