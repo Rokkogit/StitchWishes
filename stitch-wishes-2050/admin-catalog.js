@@ -1948,12 +1948,42 @@
     const piece = byHandle(state.editing);
     if (!piece) return;
 
+    // A new piece is born at /p/new-piece and only gets a decent address if
+    // somebody thinks to edit the handle. So while the handle is still the
+    // untouched default, it follows the title - the way every shop does it.
+    // The moment it is edited by hand it stops following, because an address
+    // somebody chose should not be rewritten under them.
+    if (name === 'title' && /^new-piece(-\d+)?$/.test(piece.handle)) {
+      const derived = slugify(field.value);
+      if (derived) {
+        piece.handle = uniqueHandle(derived);
+        state.editing = piece.handle;
+      }
+    }
+
     if (name === 'hidden') piece.hidden = field.checked;
     // Empty means made to order, not zero. Zero means sold out, and treating
     // a cleared box as sold out would take the piece off sale by accident.
     else if (name === 'stock') piece.stock = field.value.trim() === '' ? null : Number(field.value);
     else if (name === 'price') piece.price = field.value.trim() === '' ? null : Number(field.value);
-    else if (name === 'handle') piece.handle = slugify(field.value) || piece.handle;
+    else if (name === 'handle') {
+      const next = uniqueHandle(slugify(field.value)) || piece.handle;
+
+      if (next !== piece.handle) {
+        // Keep the old address so links already shared keep working. Not kept
+        // for a piece that has never been live: /p/new-piece-3 is not an
+        // address anybody has.
+        const old = piece.handle;
+        if (!/^new-piece(-\d+)?$/.test(old)) {
+          piece.previousHandles = [
+            ...(piece.previousHandles ?? []).filter((h) => h !== old && h !== next),
+            old,
+          ].slice(-10);
+        }
+
+        piece.handle = next;
+      }
+    }
     else piece[name] = field.value;
 
     if (name === 'handle') state.editing = piece.handle;

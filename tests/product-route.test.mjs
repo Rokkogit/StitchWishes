@@ -249,3 +249,40 @@ test('robots points at the sitemap on the host it was asked on', async () => {
   assert.ok(body.includes('Disallow: /api/'));
   assert.ok(body.includes('Allow: /'));
 });
+
+/* ------------------------------------------------- renamed addresses ---- */
+
+test('an old address redirects to the new one rather than 404ing', async () => {
+  // Renaming a handle changes the URL, and every link already shared in a DM
+  // or indexed by a search engine points at the old one. A 404 there is
+  // somebody who wanted to buy something being turned away.
+  store([piece({ handle: 'beaded-pen', previousHandles: ['untitled-may1_12-21'] })]);
+
+  const response = await render(request('/p/untitled-may1_12-21'), shellFetch());
+
+  assert.equal(response.status, 301, 'should be a permanent move, not a soft one');
+  assert.match(response.headers.get('Location'), /\/p\/beaded-pen$/);
+});
+
+test('a handle nobody has ever used is still a 404', async () => {
+  store([piece({ previousHandles: ['something-else'] })]);
+
+  assert.equal((await render(request('/p/never-existed'), shellFetch())).status, 404);
+});
+
+test('a hidden piece does not rescue its own old address', async () => {
+  // It is not for sale. Redirecting to it would send someone to a 404 by a
+  // longer route.
+  store([piece({ hidden: true, previousHandles: ['old-name'] })]);
+
+  assert.equal((await render(request('/p/old-name'), shellFetch())).status, 404);
+});
+
+test('the current address still wins over anything it used to be', async () => {
+  store([piece({ handle: 'beaded-pen', previousHandles: ['beaded-pen-old'] })]);
+
+  const response = await render(request('/p/beaded-pen'), shellFetch());
+
+  assert.equal(response.status, 200);
+  assert.ok((await response.text()).includes('<h1>Beaded pen</h1>'));
+});

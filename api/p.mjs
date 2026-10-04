@@ -158,6 +158,25 @@ export async function render(request, fetchImpl = fetch) {
 
   const product = products.find((piece) => piece?.handle === handle);
 
+  // Followed an old address? Send them to the new one rather than to a 404.
+  // 301 so a search engine moves its record across and a browser remembers,
+  // because this is a permanent move rather than a temporary detour.
+  if (!product) {
+    const renamed = products.find(
+      (piece) => piece?.hidden !== true && (piece?.previousHandles ?? []).includes(handle)
+    );
+
+    if (renamed) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          Location: `${origin}/p/${encodeURIComponent(renamed.handle)}`,
+          'Cache-Control': 'public, s-maxage=60',
+        },
+      });
+    }
+  }
+
   // A hidden piece is treated as missing. It is not for sale, and serving it
   // with full markup would advertise something nobody can buy.
   if (!product || product.hidden === true) {
