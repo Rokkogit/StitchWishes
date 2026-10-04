@@ -1405,6 +1405,14 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
   color: var(--alert);
 }
 
+/* An order that was paid for but that nobody was told about. Amber rather than
+   the alert colour: the order is safe and on the page, so this is something to
+   fix, not something that has gone wrong with the money. */
+.flag--warn {
+  background: rgba(176, 116, 24, 0.14);
+  color: #8a5a10;
+}
+
 .orders__todo { color: var(--alert); }
 
 .order__copy,

@@ -13,7 +13,7 @@ import { readStore } from '../lib/global-config.mjs';
 import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { resolveCart } from '../lib/cart.mjs';
-import { readStripeConfig, verifyWebhook, cartFromMetadata, encodeCart } from '../lib/stripe.mjs';
+import { readStripeConfig, verifyWebhook, cartFromMetadata, encodeCart, recordNotice } from '../lib/stripe.mjs';
 import { sendOrderEmail } from '../lib/notify.mjs';
 import { shippingOf, formatAddress } from '../lib/orders.mjs';
 
@@ -142,6 +142,33 @@ export async function handle(request, fetchImpl = fetch) {
     console.error(
       `[stripe-webhook] ${reference} PAID BUT NOT EMAILED: ${sent.reason} ${sent.detail ?? ''}`
     );
+  }
+
+  // Written onto the payment so the Orders tab can say what happened. A log
+  // line only helps somebody who already suspects a problem, and the whole
+  // difficulty with a missing notification is that nothing suggests looking.
+  //
+  // Best effort, and deliberately last: the money has moved and the mail has
+  // either gone or not, so failing here would turn a bookkeeping miss into a
+  // retried event and a second copy of the same order in the inbox.
+  const paymentIntent =
+    typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id;
+
+  if (paymentIntent) {
+    try {
+      await recordNotice(
+        config,
+        paymentIntent,
+        sent.ok
+          ? { at: new Date().toISOString() }
+          : { error: [sent.reason, sent.detail].filter(Boolean).join(': ') },
+        fetchImpl
+      );
+    } catch (error) {
+      console.error(`[stripe-webhook] ${reference} could not record the notice: ${error?.message}`);
+    }
   }
 
   return json(200, { received: true, reference, emailed: sent.ok });

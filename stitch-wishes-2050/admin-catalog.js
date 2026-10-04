@@ -361,6 +361,36 @@
     `;
   }
 
+  /* Whether the order reached a human being.
+
+     Three states with three different fixes, and the one that matters most is
+     the silent one: no marker at all means the webhook never ran, so Stripe is
+     not calling the shop. That is invisible everywhere else - the order is
+     here, the money is here, and nothing suggests anything is wrong. */
+  function noticeFlag(order) {
+    if (order.notifyError) return '<span class="flag flag--warn">email failed</span>';
+    if (order.notifiedAt) return '<span class="flag flag--sent">emailed</span>';
+
+    return '<span class="flag flag--warn">not emailed</span>';
+  }
+
+  function noticeNote(order) {
+    if (order.notifiedAt && !order.notifyError) return '';
+
+    if (order.notifyError) {
+      return `<p class="hint hint--warn">This order was paid for but the email did not send:
+              ${escapeHtml(order.notifyError)}. The order itself is safe &mdash; everything needed
+              to make and post it is on this page.</p>`;
+    }
+
+    return `<p class="hint hint--warn">No email went out for this order, and nothing recorded why,
+            which means Stripe never called the shop about it. Check Developers &rarr; Webhooks in
+            Stripe: the endpoint must exist <strong>in the same mode as the payment</strong>, and
+            STRIPE_WEBHOOK_SECRET must be that endpoint's secret. Test and live keep separate
+            endpoints and separate secrets, so one set up before going live does not fire now.
+            The order itself is safe &mdash; it is on this page either way.</p>`;
+  }
+
   function orderHtml(order) {
     const when = order.placedAt
       ? new Date(order.placedAt).toLocaleString(undefined, {
@@ -379,11 +409,14 @@
           <div class="order__right">
             <p class="order__total">$${dollars(order.totals.total)}</p>
             ${order.live ? '' : '<span class="flag flag--test">test</span>'}
+            ${noticeFlag(order)}
             ${order.shippedAt ? '<span class="flag flag--sent">sent</span>' : '<span class="flag flag--todo">to send</span>'}
           </div>
         </header>
 
         <ul class="order__lines">${order.items.map(orderLineHtml).join('')}</ul>
+
+        ${noticeNote(order)}
 
         ${
           order.itemsFromStripe

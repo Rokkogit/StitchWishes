@@ -320,3 +320,57 @@ test('every piece in the shop can be ordered and read back whole', () => {
     assert.ok(order.customer.address, `${product.handle} lost the address`);
   }
 });
+
+/* ----------------------------------------------- was anyone actually told */
+
+const withPayment = (metadata) =>
+  toOrder(
+    { id: 'cs_1', payment_status: 'paid', metadata: {}, payment_intent: { id: 'pi_1', metadata } },
+    CATALOG
+  );
+
+test('an order that was emailed says so', () => {
+  const order = withPayment({ notified_at: '2026-01-02T00:00:00.000Z' });
+
+  assert.equal(order.notifiedAt, '2026-01-02T00:00:00.000Z');
+  assert.equal(order.notifyError, null);
+});
+
+test('an order whose email was refused carries the reason', () => {
+  // The webhook ran, so the fix is with the mail provider.
+  const order = withPayment({ notify_error: 'rejected-key: HTTP 401' });
+
+  assert.equal(order.notifyError, 'rejected-key: HTTP 401');
+  assert.equal(order.notifiedAt, null);
+});
+
+test('an order with neither marker means the webhook never ran', () => {
+  // The silent case, and the one worth being able to see: Stripe is not
+  // calling the shop at all. Nothing else on the page would hint at it - the
+  // order is here and the money is here.
+  const order = withPayment({});
+
+  assert.equal(order.notifiedAt, null);
+  assert.equal(order.notifyError, null);
+});
+
+test('the three states are distinguishable, which is the whole point', () => {
+  const emailed = withPayment({ notified_at: '2026-01-02T00:00:00.000Z' });
+  const failed = withPayment({ notify_error: 'unreachable' });
+  const silent = withPayment({});
+
+  const state = (o) => (o.notifyError ? 'failed' : o.notifiedAt ? 'emailed' : 'never ran');
+
+  assert.deepEqual(
+    [state(emailed), state(failed), state(silent)],
+    ['emailed', 'failed', 'never ran']
+  );
+});
+
+test('an order placed before any of this was recorded reads as never run', () => {
+  // Which is true of it: nothing wrote a marker, so nothing is claimed.
+  const old = toOrder({ id: 'cs_1', payment_status: 'paid', metadata: {} }, CATALOG);
+
+  assert.equal(old.notifiedAt, null);
+  assert.equal(old.notifyError, null);
+});
