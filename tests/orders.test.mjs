@@ -92,7 +92,7 @@ test('a deleted piece falls back to what Stripe recorded at the time', () => {
 test('the raw cart is kept whatever happens, so nothing is unrecoverable', () => {
   const order = toOrder(session(), []);
 
-  assert.deepEqual(order.rawCart, [{ handle: 'beaded-pen', design: null, quantity: 1 }]);
+  assert.deepEqual(order.rawCart, [{ handle: 'beaded-pen', design: null, quantity: 1, choices: {} }]);
 });
 
 test('a piece with no name anywhere still produces a row', () => {

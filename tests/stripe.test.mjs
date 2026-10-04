@@ -249,8 +249,8 @@ test('a cart survives the trip through Stripe metadata', () => {
   const back = cartFromMetadata(cartMetadata(items));
 
   assert.deepEqual(back, [
-    { handle: 'beaded-pen', design: 'd1', quantity: 2 },
-    { handle: 'night-light', design: null, quantity: 1 },
+    { handle: 'beaded-pen', design: 'd1', quantity: 2, choices: {} },
+    { handle: 'night-light', design: null, quantity: 1, choices: {} },
   ]);
 });
 
@@ -287,8 +287,8 @@ test('rubbish metadata yields an empty cart rather than throwing', () => {
 });
 
 test('a quantity that is not a number falls back to one', () => {
-  assert.deepEqual(decodeCart('pen:d1:abc'), [{ handle: 'pen', design: 'd1', quantity: 1 }]);
-  assert.deepEqual(decodeCart('pen:d1:-5'), [{ handle: 'pen', design: 'd1', quantity: 1 }]);
+  assert.deepEqual(decodeCart('pen:d1:abc'), [{ handle: 'pen', design: 'd1', quantity: 1, choices: {} }]);
+  assert.deepEqual(decodeCart('pen:d1:-5'), [{ handle: 'pen', design: 'd1', quantity: 1, choices: {} }]);
 });
 
 /* --------------------------------------------------------- the api call */
