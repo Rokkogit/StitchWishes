@@ -213,3 +213,28 @@ test('all three parts of the bag stack in one column on a phone', () => {
   }
   assert.match(block, /grid-template-columns:\s*1fr/);
 });
+
+/* ----------------------------------------------------------- the orders tab */
+
+test('nothing warns about test orders while the shop is on a live key', () => {
+  // The banner is keyed off the Stripe key, not off the orders, so a live key
+  // means it never renders. What it must not do is render on anything else.
+  const admin = readFileSync(new URL('admin-catalog.js', DIR), 'utf8');
+
+  const warnings = [...admin.matchAll(/data\.testMode\s*\?([\s\S]{0,400}?):\s*''/g)];
+  assert.equal(warnings.length, 1, 'the test-mode warning moved or multiplied');
+
+  // And it no longer gives setting-up advice to a shop that is already open.
+  assert.ok(
+    !/ready to open/.test(admin),
+    'the orders tab still tells her to switch keys when the shop is ready'
+  );
+});
+
+test('a single practice order among real ones is marked on its own row', () => {
+  // Precise and quiet, rather than a red banner over the whole page. This is
+  // what carries the information once the blanket warning is gone.
+  const admin = readFileSync(new URL('admin-catalog.js', DIR), 'utf8');
+
+  assert.match(admin, /order\.live \? '' : '<span class="flag flag--test">test<\/span>'/);
+});

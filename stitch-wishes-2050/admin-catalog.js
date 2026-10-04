@@ -449,9 +449,14 @@
 
     el.ordersPanel.innerHTML = ordersHtml(`
       ${
+        // Only while the shop is actually on a test key, and worded for a shop
+        // that is open: this is not advice about setting up, it is a warning
+        // that nothing on the page is money and nothing new can be. A single
+        // old practice order among real ones is not this - that is marked on
+        // the row itself, below, where it is precise and quiet.
         data.testMode
-          ? `<p class="hint hint--warn">These are test orders. No money changed hands
-             — switch to the live Stripe keys when the shop is ready to open.</p>`
+          ? `<p class="hint hint--warn">The Stripe key in use is a test key, so no order
+             on this page is real money &mdash; and no new order can be.</p>`
           : ''
       }
       ${
