@@ -337,3 +337,69 @@ test('no piece in the shop offers a photograph that selects nothing', () => {
     }
   }
 });
+
+/* ------------------------------------------------------------- our picks */
+
+test('the row never comes to rest past the card it is showing', () => {
+  // The invariant the drift depends on. If the offset ever lands beyond the
+  // first remaining card, the row jumps a whole card width in one frame -
+  // which is exactly what a marquee is supposed to stop happening.
+  const widths = [200, 200, 200, 200];
+
+  for (const distance of [0, 1, 199, 200, 201, 399, 400, 401, 599, 1000]) {
+    const { offset, drop } = main.advancePicks(0, widths, distance);
+
+    assert.ok(offset >= 0, `negative offset at ${distance}`);
+    assert.ok(drop <= widths.length, `dropped more cards than there are at ${distance}`);
+
+    const remaining = widths.slice(drop);
+    if (remaining.length) {
+      assert.ok(offset < remaining[0], `offset ${offset} is past a ${remaining[0]} card`);
+    }
+  }
+});
+
+test('nothing is dropped until a card has fully left', () => {
+  // A card still half on screen must stay, or it vanishes mid-view.
+  // Compared field by field: the object comes back from a vm context, so it
+  // does not share a prototype with one built here.
+  const just = main.advancePicks(0, [200, 200], 199);
+  assert.equal(just.drop, 0);
+  assert.equal(just.offset, 199);
+
+  const gone = main.advancePicks(0, [200, 200], 200);
+  assert.equal(gone.drop, 1);
+  assert.equal(gone.offset, 0);
+});
+
+test('a big jump drops every card it passed, not just one', () => {
+  // A tab coming back from the background hands over a large delta. Dropping
+  // one card per frame there would leave the row out of position for seconds.
+  const { offset, drop } = main.advancePicks(0, [100, 100, 100, 100], 350);
+
+  assert.equal(drop, 3);
+  assert.equal(offset, 50);
+});
+
+test('the drift carries on from where it was', () => {
+  // The offset going in is mid-card, which is the normal case every frame.
+  const { offset, drop } = main.advancePicks(150, [200, 200], 100);
+
+  assert.equal(drop, 1);
+  assert.equal(offset, 50);
+});
+
+test('a zero-width card cannot spin the loop forever', () => {
+  // It should not happen. If it did, an unguarded loop would take the tab down
+  // with it, which is a worse outcome than a row that looks wrong.
+  const { drop } = main.advancePicks(0, [0, 0, 0], 10);
+
+  assert.equal(drop, 0);
+});
+
+test('the row stops recycling once it runs out of cards to drop', () => {
+  const { offset, drop } = main.advancePicks(0, [100, 100], 10_000);
+
+  assert.equal(drop, 2);
+  assert.ok(offset > 0, 'it should still report how far past the end it went');
+});

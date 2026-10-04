@@ -2156,38 +2156,24 @@ main {
   mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
 }
 
+/* The transform is driven frame by frame in main.js rather than by a keyframe
+   animation.
+
+   A keyframe can only go from somewhere to somewhere and then start again,
+   which is what the row used to do: the list twice, travelling half its own
+   width. Eight cards is about one screen wide, so on a wide monitor you
+   watched the second copy run out before the reset came - and it was the same
+   eight pieces in the same order every time round.
+
+   There is no cycle now. Cards are recycled off the left and new random ones
+   added on the right, so the row never repeats and never runs out, and the
+   thing being animated is one number that only ever goes up. */
 .picks__track {
-  --picks-duration: 48s;
   display: flex;
   gap: var(--s2);
   width: max-content;
   padding-block: 0.35rem;
-  animation: pick-drift var(--picks-duration) linear infinite;
-}
-
-.picks__copy {
-  display: flex;
-  gap: var(--s2);
-  /* No margin: the track's own gap already separates the two copies, and a
-     margin on top of it would make the seam twice as wide as every other
-     gap - visible once a cycle, which is exactly when it is most obvious. */
-}
-
-/*
-   The track holds the list twice, so half its width is eight cards and seven
-   gaps - but a full set is eight cards and EIGHT gaps, counting the one that
-   separates it from the copy. Hence the extra half-gap: without it the row
-   creeps backwards by half a gap every cycle and the drift visibly stutters.
-*/
-@keyframes pick-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(calc(-50% - var(--s2) / 2), 0, 0); }
-}
-
-/* Stop it while someone is reading or reaching for a card. */
-.picks__viewport:hover .picks__track,
-.picks__track:focus-within {
-  animation-play-state: paused;
+  will-change: transform;
 }
 
 .pick {
@@ -2263,12 +2249,11 @@ main {
    thing that setting exists for.
 */
 @media (prefers-reduced-motion: reduce) {
+  /* Every piece, once, going nowhere. main.js does not start the drift at all
+     under this setting, so there is no transform to undo. */
   .picks__track {
-    animation: none;
     width: auto;
     overflow-x: auto;
     overscroll-behavior-x: contain;
   }
-
-  .picks__copy { display: none; }
 }

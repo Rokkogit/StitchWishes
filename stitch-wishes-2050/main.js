@@ -884,10 +884,169 @@ function featuredFrom(products) {
   return picked.length ? picked : products.slice(0, 8);
 }
 
+/* How fast the row travels, in pixels a second. Slow enough to read a title on
+   the way past, quick enough that the row is visibly alive. */
+const PICKS_SPEED = 34;
+
+// Cancels the drift already running. renderAll runs twice - once from the
+// bundled catalog, again when the live one lands - and a second loop on the
+// same track would drive it at double speed forever.
+let picksDrift = null;
+
+/* One more card on the end, chosen at random.
+
+   Not one of the last few, though. A row that shows the same piece twice
+   within one screen reads as a bug rather than as a shuffle, and at eight
+   cards to a screen that would happen constantly. */
+function appendPick(track, pool, recent) {
+  const avoid = new Set(recent);
+  const open = pool.filter((piece) => !avoid.has(piece.handle));
+  const from = open.length ? open : pool;
+
+  const product = from[Math.floor(Math.random() * from.length)];
+  track.insertAdjacentHTML('beforeend', picksHtml(product));
+
+  recent.push(product.handle);
+  while (recent.length > Math.max(1, Math.min(6, pool.length - 1))) recent.shift();
+
+  return track.lastElementChild;
+}
+
+/* How far the row has travelled, and how many cards that takes off the front.
+
+   Pure, and separate from the DOM, because this is the part that can be subtly
+   wrong: the offset must always come to rest somewhere inside the first card
+   still in the row, never past it. Past it and the row jumps a card width in
+   one frame. */
+function advancePicks(offset, widths, distance) {
+  let moved = offset + distance;
+  let drop = 0;
+
+  while (drop < widths.length && widths[drop] > 0 && widths[drop] <= moved) {
+    moved -= widths[drop];
+    drop += 1;
+  }
+
+  return { offset: moved, drop };
+}
+
+/* The row, drifting forever.
+
+   It used to be the list rendered twice, travelling exactly half its own
+   width. That is the usual way to build a marquee and it has two faults here.
+   Eight cards is about one screen wide, so on a wide monitor the second copy
+   ran out at the right-hand edge before the reset came - you watched it empty
+   and refill. And it was the same eight pieces in the same order every time
+   round, so the shuffle only happened once, when the page loaded.
+
+   This recycles instead. A card that has fully left on the left is removed and
+   a new random one is added on the right, which keeps the row exactly as long
+   as it needs to be and means the sequence never repeats - there is no loop to
+   come back round to. The drift is one number going up, so nothing ever jumps:
+   dropping a card subtracts its own width from that number in the same frame
+   it leaves.
+*/
+function driftPicks(viewport, track, pool) {
+  const recent = [];
+
+  let offset = 0;
+  let previous = null;
+  let frame = null;
+
+  let onScreen = true;
+  let held = false;
+
+  const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+  // Cards are a fixed width, so this does not change when a photograph loads.
+  const widthOf = (node) => node.getBoundingClientRect().width + gap;
+
+  // Enough to cover the viewport with a card or two to spare, so there is
+  // never a frame with nothing at the right-hand edge.
+  function fill() {
+    let total = 0;
+    for (const card of track.children) total += widthOf(card);
+
+    const needed = viewport.getBoundingClientRect().width + 400;
+
+    // A guard, not a limit: a zero-width card would otherwise spin here
+    // forever and take the tab with it.
+    let guard = 80;
+    while (total < needed && guard > 0) {
+      total += widthOf(appendPick(track, pool, recent));
+      guard -= 1;
+    }
+  }
+
+  function step(now) {
+    frame = requestAnimationFrame(step);
+
+    // A tab that has been in the background hands back an enormous first
+    // delta. Capped, or the row lurches a screen sideways on the way back.
+    const elapsed = previous === null ? 0 : Math.min(now - previous, 100) / 1000;
+    previous = now;
+
+    if (held || !onScreen) return;
+
+    const widths = Array.from(track.children, widthOf);
+    const moved = advancePicks(offset, widths, PICKS_SPEED * elapsed);
+
+    offset = moved.offset;
+
+    // One off the front, one onto the back, so the row stays exactly as long
+    // as it needs to be and the piece arriving is a fresh random one.
+    for (let dropped = 0; dropped < moved.drop; dropped += 1) {
+      track.firstElementChild?.remove();
+      appendPick(track, pool, recent);
+    }
+
+    track.style.transform = `translate3d(${-offset}px, 0, 0)`;
+  }
+
+  // Held while someone is reading it or reaching for a card. Recycling is
+  // inside the same guard, so a card cannot be removed from under a finger or
+  // out of the middle of tabbing through them.
+  const hold = () => { held = true; };
+  const release = () => { held = false; };
+
+  viewport.addEventListener('pointerenter', hold);
+  viewport.addEventListener('pointerleave', release);
+  viewport.addEventListener('focusin', hold);
+  viewport.addEventListener('focusout', release);
+
+  // No reason to run a loop for a row that has been scrolled past. The tab
+  // being in the background is already handled - requestAnimationFrame stops
+  // on its own - but a visible tab scrolled to the footer is not.
+  let watcher = null;
+  if ('IntersectionObserver' in window) {
+    watcher = new IntersectionObserver(
+      ([entry]) => { onScreen = entry.isIntersecting; },
+      { rootMargin: '100px' }
+    );
+    watcher.observe(viewport);
+  }
+
+  const onResize = () => fill();
+  window.addEventListener('resize', onResize);
+
+  fill();
+  frame = requestAnimationFrame(step);
+
+  return () => {
+    cancelAnimationFrame(frame);
+    watcher?.disconnect();
+    window.removeEventListener('resize', onResize);
+    viewport.removeEventListener('pointerenter', hold);
+    viewport.removeEventListener('pointerleave', release);
+    viewport.removeEventListener('focusin', hold);
+    viewport.removeEventListener('focusout', release);
+  };
+}
+
 function renderPicks(products) {
   const section = document.querySelector('[data-picks]');
   const track = document.querySelector('[data-picks-track]');
-  if (!section || !track) return;
+  const viewport = track?.parentElement;
+  if (!section || !track || !viewport) return;
 
   // Anything visible with a photograph. A piece with no photograph would draw
   // an empty frame in a row whose entire job is to be looked at.
@@ -895,38 +1054,39 @@ function renderPicks(products) {
 
   const curation = shopCopy?.curation;
 
+  // Chosen in the panel narrows what the row draws from; it does not stop the
+  // row drifting. Choosing six pieces should mean those six go past forever,
+  // not that the row shows six and stops.
+  let pool = eligible;
+
   if (curation?.picksMode === 'chosen' && curation.picks?.length) {
-    // Chosen, and in the order they were chosen. Dealing them would throw away
-    // the one thing choosing them was for.
-    pickedHandles = curation.picks;
-  } else if (!pickedHandles) {
-    pickedHandles = shuffle(eligible)
-      .slice(0, 8)
-      .map((p) => p.handle);
+    const byHandle = new Map(eligible.map((p) => [p.handle, p]));
+    const chosen = curation.picks.map((handle) => byHandle.get(handle)).filter(Boolean);
+    if (chosen.length) pool = chosen;
   }
 
-  // Ordered by the deal, not by catalog order, so the row itself is shuffled
-  // rather than just its membership.
-  const byHandle = new Map(eligible.map((p) => [p.handle, p]));
-  const picks = pickedHandles.map((handle) => byHandle.get(handle)).filter(Boolean);
-
   // Fewer than three and a drifting row looks broken rather than deliberate.
-  if (picks.length < 3) {
+  if (pool.length < 3) {
     section.hidden = true;
     return;
   }
 
   section.hidden = false;
 
-  const once = picks.map(picksHtml).join('');
+  picksDrift?.();
+  picksDrift = null;
 
-  // Twice, so the reset lands on an identical frame. aria-hidden on the copy,
-  // or a screen reader reads the whole row a second time.
-  track.innerHTML = `${once}<span class="picks__copy" aria-hidden="true">${once}</span>`;
+  track.innerHTML = '';
+  track.style.transform = 'translate3d(0, 0, 0)';
 
-  // Speed from the number of cards rather than a fixed duration, so the row
-  // drifts at the same pace whether it holds four pieces or eight.
-  track.style.setProperty('--picks-duration', `${picks.length * 7}s`);
+  // Anyone who has asked their system for less motion gets the row as a plain
+  // scrollable strip: every piece, once, going nowhere.
+  if (REDUCED) {
+    for (const product of shuffle(pool)) track.insertAdjacentHTML('beforeend', picksHtml(product));
+    return;
+  }
+
+  picksDrift = driftPicks(viewport, track, pool);
 }
 
 function renderCollection() {
