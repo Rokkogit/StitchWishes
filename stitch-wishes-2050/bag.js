@@ -240,17 +240,24 @@
 
     el.body.innerHTML = `
       <div class="bag">
-        <div>
+        <div class="bag-main">
           <p class="label">Your bag</p>
           <h1>Ready when you are</h1>
 
           ${problems ? `<ul class="bag-problems" role="status">${problems}</ul>` : ''}
 
           <ul class="bag-items">${quote.items.map(itemHtml).join('')}</ul>
-
-          ${suggestionsHtml()}
         </div>
 
+        <!-- The suggestions are their own child of the grid rather than part
+             of the column above, so that on a phone - where everything stacks
+             into one column - the total and the pay button can sit directly
+             under the items, and the suggestions after them. Someone who has
+             decided should not have to scroll past an upsell to act on it.
+
+             On a wider screen nothing moves: the total keeps its own column
+             down the right, and the suggestions sit under the items where
+             they always were. -->
         <aside class="bag-total">
           <p class="label">The total</p>
           <dl>
@@ -275,6 +282,13 @@
 
           <a class="bag-total__back" href="collection.html">Keep looking</a>
         </aside>
+
+        ${(() => {
+          // An empty grid child still costs a gap, which on a phone is a gap
+          // under the pay button with nothing after it.
+          const extras = suggestionsHtml();
+          return extras ? `<div class="bag-extras">${extras}</div>` : '';
+        })()}
       </div>
     `;
   }

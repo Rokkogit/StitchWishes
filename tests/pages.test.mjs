@@ -172,3 +172,32 @@ test('a sideways swipe inside a row stays in that row', () => {
     assert.match(after, /overscroll-behavior-x/, 'a sideways scroller can chain to the page');
   }
 });
+
+/* ------------------------------------------------------------- the bag */
+
+test('the pay button comes before the upsell, not after it', () => {
+  // On a phone the bag stacks into one column in source order. Someone who has
+  // decided should not have to scroll past "add a little something" to find the
+  // button that takes their money.
+  const bag = readFileSync(new URL('bag.js', DIR), 'utf8');
+
+  const items = bag.indexOf('class="bag-items"');
+  const pay = bag.indexOf('bag-total__pay');
+  const extras = bag.indexOf('class="bag-extras"');
+
+  assert.ok(items > 0 && pay > 0 && extras > 0, 'the bag no longer has these three parts');
+  assert.ok(items < pay, 'the total is rendered before the items');
+  assert.ok(pay < extras, 'the upsell is rendered before the pay button');
+});
+
+test('all three parts of the bag stack in one column on a phone', () => {
+  // Any of them left in a second column would be off the side of the screen.
+  const css = readFileSync(new URL('styles.css', DIR), 'utf8');
+  const phone = css.slice(css.indexOf('@media (max-width: 860px)'));
+  const block = phone.slice(0, phone.indexOf('\n}\n') + 3);
+
+  for (const part of ['bag-main', 'bag-extras', 'bag-total']) {
+    assert.match(block, new RegExp(part), `${part} is not placed on a phone`);
+  }
+  assert.match(block, /grid-template-columns:\s*1fr/);
+});

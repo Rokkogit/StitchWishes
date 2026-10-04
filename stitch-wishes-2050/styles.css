@@ -1143,6 +1143,21 @@ main {
   align-items: start;
 }
 
+/* Three children: the items, the total, and the suggestions. On a wide screen
+   the items and the suggestions stack down the left and the total holds the
+   right - which is the layout it always had, now spelled out rather than
+   relying on where the markup happened to sit. */
+.bag-main { grid-column: 1; }
+.bag-extras { grid-column: 1; }
+
+/* The total spans both rows so it can go on being sticky past the end of the
+   items. Confined to its own row it would unstick the moment the suggestions
+   scrolled into view, which is exactly when someone is deciding. */
+.bag-total {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}
+
 .bag h1 { font-size: clamp(1.8rem, 3vw, 2.6rem); margin-bottom: var(--s3); }
 
 .bag-empty { text-align: center; padding-block: var(--s5) var(--s6); }
@@ -1328,8 +1343,14 @@ main {
 .btn[disabled]:hover { transform: none; box-shadow: none; }
 
 @media (max-width: 860px) {
+  /* One column, and the order is the order someone needs: what they chose,
+     then the total and the button to pay it, then anything they might add.
+     The upsell goes after the decision rather than in front of it. */
   .bag { grid-template-columns: 1fr; }
-  .bag-total { position: static; }
+  .bag-main,
+  .bag-extras,
+  .bag-total { grid-column: 1; }
+  .bag-total { grid-row: auto; position: static; }
 }
 
 @media (max-width: 560px) {
@@ -1677,8 +1698,7 @@ main {
 
 /* ------------------------------------------------------- bag add-ons ---- */
 /*
-   Postage is charged once per order and is already in the total by the time
-   anyone reads this, so a small piece added here really does cost only the
+   Shipping is free, so a small piece added here really does cost only the
    piece. That is worth saying plainly - it is the honest version of the
    nudge, and it happens to be the persuasive one.
 */
@@ -1686,6 +1706,17 @@ main {
   margin-top: var(--s4);
   padding-top: var(--s3);
   border-top: 1px solid var(--line);
+}
+
+/* It sits below the total on a phone, where the grid gap has already set it
+   apart and the rule above would be a second separator on top of the one the
+   total's own border already draws. */
+@media (max-width: 860px) {
+  .addons {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
 }
 
 .addons__why {
