@@ -74,8 +74,27 @@
   box-sizing: border-box;
 }
 
+/*
+   The page scrolls up and down, and only up and down.
+
+   overflow-x: hidden on the body alone was not enough. It makes a scrollport
+   that is merely scrolled to its limit, and a sideways drag on a touch screen
+   can still move it - so the whole site slid left and right under a thumb while
+   someone was trying to scroll down a page.
+
+   clip is the one that cannot: it creates no scroll container at all, so there
+   is nothing to drag. hidden stays as the fallback for anything too old to know
+   clip, and the declaration order means a browser that understands both takes
+   clip.
+
+   This is a lock, not a cure: something genuinely wider than the screen is
+   still a bug, and is still worth finding. It just must not be able to take the
+   rest of the site sideways with it.
+*/
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -87,6 +106,13 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overflow-x: clip;
+
+  /* A horizontal swipe that starts inside one of the rows that scroll
+     sideways - the filter chips, the design thumbnails, the picks - must stay
+     in that row rather than handing the rest of the gesture to the page. That
+     chaining is the other half of why the site moved under a thumb. */
+  overscroll-behavior-x: none;
 }
 
 /* The studio's own painted sky, fixed behind everything.
@@ -1639,6 +1665,7 @@ main {
        before any product is visible. */
     flex-wrap: nowrap;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     scrollbar-width: none;
     margin-inline: calc(var(--s3) * -1);
     padding-inline: var(--s3);
@@ -1899,6 +1926,7 @@ main {
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     gap: 0.4rem;
     margin-top: 0.5rem;
     scrollbar-width: none;
@@ -2202,6 +2230,7 @@ main {
     animation: none;
     width: auto;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
   }
 
   .picks__copy { display: none; }

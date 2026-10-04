@@ -77,13 +77,6 @@ test('the large photograph is of something you can actually buy', () => {
   assert.ok(design, `the page opens on ${opening}, which is not a design anyone can choose`);
 });
 
-test('the group shot is still there to look at', () => {
-  // It is the best picture of the range. It just is not what the price labels.
-  const html = main.galleryHtml(PENS);
-
-  assert.ok(html.includes(PENS.images[0]), 'the group shot was dropped from the strip');
-});
-
 test('the thumbnail marked active is the one being shown', () => {
   const html = main.galleryHtml(PENS);
   const opening = html.match(/<img src="([^"]+)"[^>]*data-gallery-main/)[1];
@@ -281,4 +274,66 @@ test('the price and the postage note are rendered together', () => {
   assert.match(html, /Free shipping/);
 
   setShipping(null);
+});
+
+/* ------------------------------------------------ only the designs can be picked */
+
+test('the strip holds nothing but designs', () => {
+  // The strip is the picker: tapping a thumbnail chooses that design. A
+  // photograph of the whole set sitting among them reads as one more option,
+  // and tapping it does nothing - the worst answer a control can give.
+  const html = main.galleryHtml(PENS);
+
+  const thumbs = [...html.matchAll(/<button class="thumb[^"]*"([\s\S]*?)>/g)];
+  assert.equal(thumbs.length, PENS.designs.options.length);
+
+  for (const [, attrs] of thumbs) {
+    assert.match(attrs, /data-design="/, 'a thumbnail that selects nothing is in the picker');
+  }
+});
+
+test('the group shot is not offered as a design', () => {
+  assert.ok(
+    !main.galleryHtml(PENS).includes(PENS.images[0]),
+    'the photograph of all four pens is still in the picker'
+  );
+});
+
+test('the group shot still sells the range on the catalog card', () => {
+  // It is not lost, and this is where it does its job: the whole set at a
+  // glance, with a badge saying how many designs there are.
+  const card = main.mediaHtml(PENS);
+
+  assert.ok(card.includes(PENS.images[0]));
+  assert.ok(card.includes(`${PENS.designs.options.length} designs`));
+});
+
+test('a piece with no designs still shows all its photographs', () => {
+  // Nothing to pick there, so every photograph belongs.
+  const plain = { title: 'Mousepad', price: 13.99, images: ['a.jpg', 'b.jpg', 'c.jpg'] };
+  const html = main.galleryHtml(plain);
+
+  for (const image of plain.images) assert.ok(html.includes(image), image);
+});
+
+test('a design whose photograph is not in the gallery is still reachable', () => {
+  // A design nobody can pick is a piece nobody can buy.
+  const odd = {
+    title: 'Pens',
+    price: 12,
+    images: ['group.jpg'],
+    designs: { label: 'Design', options: [{ id: 'd1', name: 'One', image: 'lonely.jpg' }] },
+  };
+
+  assert.ok(main.galleryHtml(odd).includes('lonely.jpg'));
+});
+
+test('no piece in the shop offers a photograph that selects nothing', () => {
+  for (const piece of CATALOG) {
+    if (!piece.designs?.options?.length) continue;
+
+    for (const [, attrs] of main.galleryHtml(piece).matchAll(/<button class="thumb[^"]*"([\s\S]*?)>/g)) {
+      assert.match(attrs, /data-design="/, `${piece.handle} has a dead thumbnail`);
+    }
+  }
 });

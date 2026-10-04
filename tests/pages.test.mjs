@@ -144,3 +144,31 @@ test('nothing on a public page is an inline script the CSP would block', () => {
     assert.ok(!/\son(click|error|load|submit|change)=/i.test(html), `${name} has an inline handler`);
   }
 });
+
+/* --------------------------------------------------------- one axis only */
+
+test('the page cannot be dragged sideways', () => {
+  // overflow-x: hidden on the body alone was not enough - it leaves a
+  // scrollport that a thumb can still drag. clip creates no scroll container
+  // at all, so there is nothing to drag.
+  const css = readFileSync(new URL('styles.css', DIR), 'utf8');
+  const root = css.slice(css.indexOf('html {'), css.indexOf('body {'));
+
+  assert.match(root, /overflow-x:\s*clip/, 'the root can still scroll sideways');
+  // hidden stays first as the fallback for anything too old to know clip.
+  assert.match(root, /overflow-x:\s*hidden[\s\S]*overflow-x:\s*clip/);
+});
+
+test('a sideways swipe inside a row stays in that row', () => {
+  // The filter chips, the design thumbnails and the picks all scroll
+  // sideways. Without this, a gesture that runs out of row hands the rest of
+  // itself to the page, which is the other way the site moved under a thumb.
+  const css = readFileSync(new URL('styles.css', DIR), 'utf8');
+
+  const scrollers = [...css.matchAll(/overflow-x:\s*auto;([\s\S]{0,120})/g)];
+  assert.ok(scrollers.length >= 2, 'no sideways scrollers found to check');
+
+  for (const [, after] of scrollers) {
+    assert.match(after, /overscroll-behavior-x/, 'a sideways scroller can chain to the page');
+  }
+});

@@ -167,25 +167,36 @@ const chosen = { design: null, choices: {} };
 
 const designsOf = (product) => product.designs?.options ?? [];
 
-/* Every design photograph is also a gallery photograph — the measurement is
-   in the catalog: overlap equals the design count on all eight pieces. So
-   there is one strip, not two. A thumbnail IS the design; choosing one shows
-   it large and selects it.
+/* What the strip shows.
 
-   A handful of pieces carry one extra photograph, the group shot of the whole
-   set. It stays in the strip and stays viewable, but it is not something you
-   can buy, so it does not select anything. */
+   The strip IS the picker - tapping a thumbnail chooses that design - so
+   everything in it has to be something that can be chosen. A photograph of the
+   whole set sitting among the designs reads as a ninth option, and tapping it
+   does nothing, which is the worst answer a control can give.
+
+   So where a piece comes in designs, the strip is the designs and nothing
+   else. The group shot is not lost: it is the photograph on the catalog card,
+   which is where it does its job - it sells the range at a glance, next to a
+   badge saying how many designs there are. It just has no business in a picker.
+
+   Where a piece has no designs there is nothing to pick, so the strip is simply
+   its photographs and all of them belong. */
 function galleryEntries(product) {
-  const byImage = new Map(designsOf(product).map((design) => [design.image, design]));
+  const designs = designsOf(product);
   const images = product.images ?? [];
 
-  const entries = images.map((src) => ({ src, design: byImage.get(src) ?? null }));
+  if (!designs.length) return images.map((src) => ({ src, design: null }));
 
-  // Defensive: a design whose photograph is not among the gallery images would
-  // otherwise be unreachable. Does not happen in this catalog, but a design
-  // nobody can pick is a piece nobody can buy.
-  for (const design of designsOf(product)) {
-    if (!images.includes(design.image)) entries.push({ src: design.image, design });
+  const byImage = new Map(designs.map((design) => [design.image, design]));
+
+  // Catalog order, so the strip reads the way the photographs were arranged.
+  const entries = images.filter((src) => byImage.has(src)).map((src) => ({ src, design: byImage.get(src) }));
+
+  // A design whose photograph is not among the gallery images would otherwise
+  // be unreachable, and a design nobody can pick is a piece nobody can buy.
+  const shown = new Set(entries.map((entry) => entry.src));
+  for (const design of designs) {
+    if (!shown.has(design.image)) entries.push({ src: design.image, design });
   }
 
   return entries;
