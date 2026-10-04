@@ -139,10 +139,10 @@
 
   /* ---------------------------------------------------- suggestive selling */
   /*
-     Postage is charged once per order and it is already in this total. So a
-     small piece added now costs only the piece — which is true, specific, and
-     the most persuasive thing that can honestly be said at this point. It is
-     not a trick: adding nothing leaves the total exactly as it is.
+     Shipping is free, so a small piece added now costs only the piece — which
+     is true, specific, and the most persuasive thing that can honestly be said
+     at this point. It is not a trick: adding nothing leaves the total exactly
+     as it is.
 
      The cheapest pieces not already in the bag, three of them.
   */
@@ -189,7 +189,7 @@
     return `
       <section class="addons">
         <p class="label">Add a little something</p>
-        <p class="addons__why">Postage is already covered by this order, so anything you add costs just the piece.</p>
+        <p class="addons__why">Shipping is free, so anything you add costs just the piece.</p>
         <ul class="addons__list">${candidates.map(row).join('')}</ul>
       </section>
     `;
@@ -256,7 +256,16 @@
           <dl>
             <div><dt>Pieces</dt><dd>${money(quote.subtotal)}</dd></div>
             ${quote.lines
-              .map((line) => `<div><dt>${escapeHtml(line.label)}</dt><dd>${money(line.amount)}</dd></div>`)
+              .map(
+                (line) =>
+                  // A line the server marked free says "Free". "$0.00" beside
+                  // Shipping reads like a rounding error; this is the one place
+                  // the customer is actually looking at the cost of the order,
+                  // so it is the one place it most needs to say so plainly.
+                  `<div${line.free ? ' class="bag-total__free"' : ''}><dt>${escapeHtml(line.label)}</dt><dd>${
+                    line.free ? 'Free' : money(line.amount)
+                  }</dd></div>`
+              )
               .join('')}
             <div class="bag-total__sum"><dt>Total</dt><dd>${money(quote.total)}</dd></div>
           </dl>

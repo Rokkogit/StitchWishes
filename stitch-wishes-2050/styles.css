@@ -1236,6 +1236,16 @@ main {
 .bag-total dt { color: var(--ink-soft); font-size: 0.92rem; }
 .bag-total dd { margin: 0; font-family: var(--font-mono); font-size: 0.92rem; }
 
+/* The one row in the total that is good news. Given the ink colour and a
+   little weight so it is read rather than skimmed past - it is the reason the
+   number above it is what it is. */
+.bag-total__free dd {
+  color: var(--ink);
+  font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
 .bag-total__sum {
   margin-top: 0.4rem;
   padding-top: 0.7rem !important;
@@ -1821,10 +1831,32 @@ main {
   margin: 0.15rem 0 var(--s2);
 }
 
+/* Sits directly under the price, because that is the number it changes the
+   meaning of. Quiet rather than a badge: a shop that shouts "FREE SHIPPING"
+   looks like it is compensating, and this one is simply telling you. */
+.detail__ship {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: -0.6rem 0 var(--s2);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.detail__ship::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--mint);
+  flex: none;
+}
+
 @media (max-width: 560px) {
   .assure { gap: 0.35rem 0.8rem; }
   .assure li { font-size: 0.78rem; }
   .detail__price { font-size: 1.5rem; }
+  .detail__ship { font-size: 0.8rem; margin-top: -0.4rem; }
 }
 
 /* ------------------------------------- the piece, on one phone screen ---- */

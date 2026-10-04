@@ -228,3 +228,57 @@ test('every piece sold in several designs says each', () => {
 
   assert.deepEqual(silent, [], `priced as if there were one: ${silent.join(', ')}`);
 });
+
+/* --------------------------------------------------- what it says about postage */
+
+// shopShipping is a top-level `let`, so it lives in the context's lexical scope
+// rather than on its global object. Assigning through the same context is how
+// the page's two states get exercised.
+const setShipping = (value) => vm.runInContext(`shopShipping = ${JSON.stringify(value)}`, main);
+
+test('before the server answers, the shop says postage is free', () => {
+  // The page renders once from its bundled catalog before /api/catalog replies.
+  // Showing a postage figure and then taking it back is worse than either.
+  setShipping(null);
+
+  assert.equal(main.postageIsFree(), true);
+  assert.match(main.freeShippingNote(), /Free shipping/);
+});
+
+test('the page trusts the server rather than working it out again', () => {
+  // The rule depends on a key older saved settings do not carry. A second copy
+  // of it here is how a site starts advertising free postage while the bag
+  // charges for it.
+  setShipping({ label: 'Shipping', amount: 6, enabled: true, free: true });
+  assert.equal(main.postageIsFree(), true);
+
+  setShipping({ label: 'Shipping', amount: 6, enabled: true, free: false });
+  assert.equal(main.postageIsFree(), false);
+});
+
+test('free shipping is said on the piece, next to the price', () => {
+  setShipping({ free: true, amount: 6, enabled: true });
+
+  assert.match(main.freeShippingNote(), /Free shipping on every order/);
+  assert.match(main.assuranceHtml({ stock: null }), /Free shipping/);
+});
+
+test('a shop that charges for postage prints the real figure instead', () => {
+  setShipping({ label: 'Shipping', amount: 6, enabled: true, free: false });
+
+  assert.equal(main.freeShippingNote(), '');
+  assert.match(main.assuranceHtml({ stock: null }), /\$6\.00 flat postage/);
+});
+
+test('the price and the postage note are rendered together', () => {
+  setShipping({ free: true, amount: 6, enabled: true });
+
+  // Both come off the same render, so a piece cannot show one without the
+  // other. Restored afterwards so the order of tests does not matter.
+  const html = `${main.detailPriceHtml(PENS)}${main.freeShippingNote()}`;
+
+  assert.match(html, /\$12\.99 each/);
+  assert.match(html, /Free shipping/);
+
+  setShipping(null);
+});

@@ -85,26 +85,28 @@ test('shipping and fees round-trip', () => {
 // Pinned deliberately. This is the rate a customer is charged when nothing has
 // been saved in the Checkout tab, so it is a business number living in code,
 // and it should not be able to drift without somebody noticing here.
-test('the fallback rate is $6 flat, switched on', () => {
+test('the fallback rate is $6 flat, built into the prices', () => {
   assert.equal(DEFAULT_SETTINGS.shipping.amount, 6);
   assert.equal(DEFAULT_SETTINGS.shipping.enabled, true);
+  assert.equal(DEFAULT_SETTINGS.shipping.includedInPrices, true);
 
-  const total = orderTotal([{ price: 12.99, quantity: 1 }], null);
-  assert.equal(total.shipping, 6);
+  // Nothing is charged for postage, because every price already carries it.
+  const total = orderTotal([{ price: 18.99, quantity: 1 }], null);
+  assert.equal(total.shipping, 0);
   assert.equal(total.total, 18.99);
-  // One postage charge per order, not one per piece.
-  assert.equal(orderTotal([{ price: 10, quantity: 4 }], null).shipping, 6);
 });
 
 test('a stored rate beats the fallback, which is the point of the fallback', () => {
   const saved = validateSettings({
-    shipping: { label: 'Postage', amount: 9.5, enabled: true },
+    shipping: { label: 'Postage', amount: 9.5, enabled: true, includedInPrices: false },
     fees: [],
   });
 
   const total = orderTotal([{ price: 10, quantity: 1 }], saved.value);
   assert.equal(total.shipping, 9.5);
   assert.equal(total.lines[0].label, 'Postage');
+  // One postage charge per order, not one per piece.
+  assert.equal(orderTotal([{ price: 10, quantity: 4 }], saved.value).shipping, 9.5);
 });
 
 test('free shipping is still reachable by switching it off', () => {
@@ -196,8 +198,11 @@ test('zero is a legitimate amount', () => {
 
 /* ------------------------------------------------------------- orderTotal */
 
+// includedInPrices: false throughout this block, because these tests are about
+// the charged path - postage as its own line on the order. The absorbed path,
+// which is what the shop actually runs, has its own section below.
 const settings = {
-  shipping: { label: 'Shipping', amount: 5, enabled: true },
+  shipping: { label: 'Shipping', amount: 5, enabled: true, includedInPrices: false },
   fees: [
     { id: 'a', label: 'Handling', amount: 1.5, enabled: true },
     { id: 'b', label: 'Rush', amount: 10, enabled: false },
@@ -273,7 +278,7 @@ test('an empty cart costs nothing, not the price of shipping', () => {
 // keychain and overcharge a $30 canvas, and she carries the difference.
 
 const taxed = (rate, over = {}) => ({
-  shipping: { label: 'Shipping', amount: 5, enabled: true },
+  shipping: { label: 'Shipping', amount: 5, enabled: true, includedInPrices: false },
   fees: [],
   tax: { label: 'Sales tax', rate, enabled: true, includeShipping: false, ...over },
 });

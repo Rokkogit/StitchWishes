@@ -1402,6 +1402,35 @@
     `;
   }
 
+  /* What this piece will read on the site.
+
+     Postage is built into the prices, so the number here is not the number a
+     customer sees. Typing the all-in price into this box would add the postage
+     twice, which is the one mistake this panel can make that shows up on a card
+     statement rather than on a page. So the box says what it is for, and what
+     it produces. */
+  function shownPriceHint(price) {
+    const s = state.settings ?? {};
+    const absorbed =
+      s.shipping?.enabled !== false && s.shipping?.includedInPrices !== false
+        ? Number(s.shipping?.amount) || 0
+        : 0;
+
+    if (!absorbed) return '';
+
+    if (price == null || price === '' || !Number.isFinite(Number(price))) {
+      return `<p class="hint">What you earn on the piece. The site adds $${dollars(absorbed)} postage
+              on top and tells the customer shipping is free.</p>`;
+    }
+
+    const shown = (Math.round(Number(price) * 100) + Math.round(absorbed * 100)) / 100;
+
+    return `<p class="hint">What you earn. On the site this reads
+            <strong>$${dollars(shown)}</strong> &mdash; your $${dollars(price)} plus
+            $${dollars(absorbed)} postage, with shipping shown as free. Change the postage in
+            the Checkout tab and every price moves with it.</p>`;
+  }
+
   function renderPiece() {
     const piece = byHandle(state.editing);
 
@@ -1419,6 +1448,7 @@
           <input class="field field--price" id="f-price" inputmode="decimal"
                  value="${piece.price == null ? '' : escapeHtml(piece.price)}"
                  placeholder="No price" data-field="price">
+          ${shownPriceHint(piece.price)}
 
           <label class="label" for="f-stock">How many are there</label>
           <input class="field field--mono" id="f-stock" inputmode="numeric"
@@ -2025,7 +2055,10 @@
     const s = state.settings;
     const c = (v) => Math.round((Number(v) || 0) * 100);
 
-    const shipping = s.shipping?.enabled === false ? 0 : c(s.shipping?.amount);
+    // Nothing is charged for postage when it is already inside the price. Same
+    // rule as shippingIncluded in lib/settings.mjs: absent means included.
+    const absorbed = s.shipping?.enabled !== false && s.shipping?.includedInPrices !== false;
+    const shipping = s.shipping?.enabled === false || absorbed ? 0 : c(s.shipping?.amount);
     const fees = (s.fees ?? []).reduce(
       (sum, fee) => sum + (fee.enabled === false ? 0 : c(fee.amount)),
       0
@@ -2039,7 +2072,17 @@
     return { tax: tax / 100, total: cents / 100 };
   }
 
-  const previewTotal = (example) => previewParts(example).total;
+  const previewTotal = (example) => {
+    const s = state.settings;
+    const absorbed =
+      s.shipping?.enabled !== false && s.shipping?.includedInPrices !== false
+        ? Number(s.shipping?.amount) || 0
+        : 0;
+
+    // What they actually hand over: the price as shown on the site, which
+    // already carries the postage, plus anything charged on top of it.
+    return Math.round((previewParts(example).total + absorbed) * 100) / 100;
+  };
 
   function chargeRow(charge, kind, index) {
     const id = kind === 'shipping' ? 'shipping' : `fee-${index}`;
@@ -2086,7 +2129,23 @@
       <section class="charges">
         <p class="label">Shipping</p>
         ${chargeRow(s.shipping ?? { label: 'Shipping', amount: 0, enabled: false }, 'shipping', 0)}
-        <p class="hint">Charged once per order. Switch it off for free shipping.</p>
+
+        <label class="toggle charges__sub">
+          <input type="checkbox" data-charge="shipping" data-charge-field="includedInPrices"
+                 ${s.shipping?.includedInPrices !== false ? 'checked' : ''}>
+          <span>Build it into the prices &mdash; customers see free shipping</span>
+        </label>
+
+        <p class="hint">
+          ${s.shipping?.includedInPrices !== false
+            ? `On. Every price on the site shows $${dollars(s.shipping?.amount)} more than you typed
+               in the Catalog tab, and nothing is charged for postage at checkout &mdash; the site
+               says shipping is free, and it is. Change the amount above and every price moves with
+               it; your own prices are never rewritten, so you can switch this off and they are
+               back exactly as they were.`
+            : 'Off. Postage is charged once per order, on its own line in the bag.'}
+        </p>
+        <p class="hint">Switch the row above off entirely and nothing is added anywhere.</p>
       </section>
 
       <section class="charges">
@@ -2141,9 +2200,17 @@
         <p class="label">On a $${dollars(example)} piece</p>
         <dl class="preview__lines">
           <div><dt>The piece</dt><dd>$${dollars(example)}</dd></div>
-          ${s.shipping?.enabled !== false && (Number(s.shipping?.amount) || 0) > 0
-            ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>$${dollars(s.shipping.amount)}</dd></div>`
-            : ''}
+          ${s.shipping?.enabled !== false
+            && (Number(s.shipping?.amount) || 0) > 0
+            && s.shipping?.includedInPrices !== false
+            ? `<div><dt>Postage, built in</dt><dd>+ $${dollars(s.shipping.amount)}</dd></div>
+               <div><dt>Shown on the site</dt><dd>$${dollars(
+                 (Math.round(Number(example) * 100) + Math.round(Number(s.shipping.amount) * 100)) / 100
+               )}</dd></div>
+               <div><dt>${escapeHtml(s.shipping.label || 'Shipping')} at checkout</dt><dd>Free</dd></div>`
+            : s.shipping?.enabled !== false && (Number(s.shipping?.amount) || 0) > 0
+              ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>$${dollars(s.shipping.amount)}</dd></div>`
+              : ''}
           ${(s.fees ?? [])
             .filter((fee) => fee.enabled !== false && (Number(fee.amount) || 0) > 0)
             .map((fee) => `<div><dt>${escapeHtml(fee.label || 'Fee')}</dt><dd>$${dollars(fee.amount)}</dd></div>`)
@@ -2197,7 +2264,9 @@
 
     if (!target) return;
 
-    if (name === 'enabled' || name === 'includeShipping') target[name] = field.checked;
+    if (name === 'enabled' || name === 'includeShipping' || name === 'includedInPrices') {
+      target[name] = field.checked;
+    }
     else if (name === 'amount' || name === 'rate') {
       target[name] = field.value.trim() === '' ? 0 : Number(field.value);
     } else target[name] = field.value;
@@ -2206,7 +2275,9 @@
 
     // Redrawing on every keystroke would move the caret. The preview is
     // refreshed on blur instead, and on the toggles, which cannot be typed in.
-    if (name === 'enabled' || name === 'includeShipping') renderCheckout();
+    if (name === 'enabled' || name === 'includeShipping' || name === 'includedInPrices') {
+      renderCheckout();
+    }
   }
 
   // Proving the notification pipe works, rather than assuming it does. The

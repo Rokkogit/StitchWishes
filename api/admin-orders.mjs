@@ -12,7 +12,7 @@ import { readConfig, verifyToken, readCookie, COOKIE_NAME } from '../lib/session
 import { readStripeConfig, listSessions, markShipped } from '../lib/stripe.mjs';
 import { toOrder, sortOrders, dashboardUrl, orderSummary } from '../lib/orders.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { readyCatalog } from '../lib/seed.mjs';
+import { shopCatalog } from '../lib/pricing.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 
 function authorized(request) {
@@ -116,7 +116,7 @@ export async function handle(request, fetchImpl = fetch) {
   // The catalog names the pieces. A failure here is not fatal: toOrder falls
   // back to what Stripe recorded at the time of sale, which is worse but real.
   const store = await readStore(process.env);
-  const catalog = readyCatalog(store.ok ? store.products : SEED, SEED);
+  const catalog = shopCatalog(store.ok ? store.products : SEED, SEED, store.settings);
 
   const sessions = result.value?.data ?? [];
   const orders = sortOrders(sessions.map((session) => toOrder(session, catalog)))

@@ -43,8 +43,11 @@ const item = (over = {}) => ({
   ...over,
 });
 
+// Postage charged as its own line. The shop runs with it built into the prices
+// instead; that path is covered in tests/shipping-included.test.mjs, where the
+// thing worth asserting is that Stripe is sent no shipping option at all.
 const CHARGES = {
-  shipping: { label: 'Shipping', amount: 6, enabled: true },
+  shipping: { label: 'Shipping', amount: 6, enabled: true, includedInPrices: false },
   fees: [],
   tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false },
 };
@@ -151,7 +154,7 @@ test('free shipping sends no shipping option', () => {
 
 test('fees and tax become their own labelled lines', () => {
   const settings = {
-    shipping: { label: 'Shipping', amount: 6, enabled: true },
+    shipping: { label: 'Shipping', amount: 6, enabled: true, includedInPrices: false },
     fees: [
       { label: 'Gift wrap', amount: 2, enabled: true },
       { label: 'Switched off', amount: 99, enabled: false },

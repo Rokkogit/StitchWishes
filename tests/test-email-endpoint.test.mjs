@@ -131,7 +131,7 @@ test('a test order goes out, marked as a test', async () => {
 test('the sample is priced with the live checkout settings when there are any', async () => {
   const sends = stub({
     settings: {
-      shipping: { label: 'Postage', amount: 7.5, enabled: true },
+      shipping: { label: 'Postage', amount: 7.5, enabled: true, includedInPrices: false },
       fees: [],
       tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false },
     },

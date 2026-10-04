@@ -169,7 +169,7 @@ test('an order with no items still produces a readable email', () => {
 test('shipping, fees and tax each appear as their own line', () => {
   const items = [item()];
   const totals = orderTotal(items, {
-    shipping: { label: 'Shipping', amount: 5, enabled: true },
+    shipping: { label: 'Shipping', amount: 5, enabled: true, includedInPrices: false },
     fees: [{ label: 'Gift wrap', amount: 2, enabled: true }],
     tax: { label: 'Sales tax', rate: 10, enabled: true, includeShipping: false },
   });

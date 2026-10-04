@@ -5,11 +5,11 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
+import { DEFAULT_SETTINGS, shippingIncluded, shippingIsFree } from '../lib/settings.mjs';
 import { validateContent } from '../lib/content.mjs';
 import { themeVars, validateTheme } from '../lib/theme.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
-import { readyCatalog } from '../lib/seed.mjs';
+import { shopCatalog } from '../lib/pricing.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 
 // Global Config takes up to ten seconds to propagate a write, so caching for
@@ -41,7 +41,7 @@ export default {
     // copy. Applied here rather than in the page, so /api/quote sees exactly
     // the same catalog — otherwise the shop would offer a design the checkout
     // would then refuse.
-    const products = readyCatalog(result.products, SEED);
+    const products = shopCatalog(result.products, SEED, result.settings);
 
     return json(
       200,
@@ -52,7 +52,17 @@ export default {
         // most common reason a bag is abandoned, and a number printed on a page
         // has to be the real one - hardcoding it would start lying the first
         // time it was changed in the admin panel.
-        shipping: (result.settings ?? DEFAULT_SETTINGS).shipping,
+        //
+        // Sent already decided rather than as the raw setting: whether postage
+        // is free is worked out by shippingIncluded, from a key that settings
+        // saved before this feature do not carry. A browser applying that rule
+        // for itself is a second copy of it, and the two would eventually
+        // disagree about whether the shop charges for postage.
+        shipping: {
+          ...(result.settings ?? DEFAULT_SETTINGS).shipping,
+          includedInPrices: shippingIncluded(result.settings),
+          free: shippingIsFree(result.settings),
+        },
         // The site's own words. Sent with the catalog rather than on a route of
         // their own: every page that wants them is already making this call,
         // and a second request would be a second chance to be slow.

@@ -23,7 +23,9 @@ const piece = (over = {}) => ({
 });
 
 const SETTINGS = {
-  shipping: { label: 'Shipping', amount: 6, enabled: true },
+  // Postage as a charged line, which is still a mode the shop can be put in.
+  // The absorbed path is covered in tests/shipping-included.test.mjs.
+  shipping: { label: 'Shipping', amount: 6, enabled: true, includedInPrices: false },
   fees: [],
   tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false },
 };

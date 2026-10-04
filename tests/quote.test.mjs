@@ -14,7 +14,9 @@ const CATALOG = [
 ];
 
 const SETTINGS = {
-  shipping: { label: 'Postage', amount: 5, enabled: true },
+  // Postage as a charged line. What the shop actually runs - postage built
+  // into the prices - is covered end to end in tests/shipping-included.test.mjs.
+  shipping: { label: 'Postage', amount: 5, enabled: true, includedInPrices: false },
   fees: [{ id: 'h', label: 'Handling', amount: 1.5, enabled: true }],
 };
 

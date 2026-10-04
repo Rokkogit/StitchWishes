@@ -268,13 +268,51 @@ function refreshSelection(root, product) {
    tribute to somebody's mother. Faking urgency would cheapen the thing being
    sold. Where stock IS finite, the real number is shown; see buyHtml.
 */
+/* Whether the shop charges for postage.
+
+   The server decides this and sends the answer with the catalog, because the
+   rule depends on a setting that older saved settings do not carry. The page
+   does not work it out for itself; a second copy of that rule is how a site
+   starts advertising free postage while the bag charges for it.
+
+   Unknown means free. The page renders once from its bundled catalog before
+   /api/catalog has answered, and the shop builds postage into its prices, so
+   that is what it says in the meantime rather than showing a figure it would
+   then take back. */
+function postageIsFree() {
+  return shopShipping?.free !== false;
+}
+
+// Said wherever someone is deciding. Free postage is the single most effective
+// thing a small shop can say, and it is only worth saying if it is everywhere
+// the decision happens rather than discovered at the end.
+/* The policy and terms pages say shipping is free, in their own markup, so they
+   read correctly with no scripts and to a crawler. If the Checkout tab is ever
+   switched back to charging for postage those two paragraphs become wrong in
+   the worst possible place - the pages someone reads to find out what they will
+   be charged - so they are corrected from the live setting. */
+function applyPostageCopy() {
+  if (postageIsFree()) return;
+
+  const amount = formatPrice(Number(shopShipping.amount));
+
+  for (const node of document.querySelectorAll('[data-postage]')) {
+    node.textContent =
+      `Postage is ${amount} per order, added as its own line in your bag before ` +
+      'you pay, so the total you see is the total you are charged.';
+  }
+}
+
+function freeShippingNote() {
+  return postageIsFree() ? '<p class="detail__ship">Free shipping on every order</p>' : '';
+}
+
 function assuranceHtml(product) {
   const madeToOrder = !Number.isFinite(product.stock);
 
-  const postage =
-    shopShipping && shopShipping.enabled !== false && Number(shopShipping.amount) > 0
-      ? `${formatPrice(Number(shopShipping.amount))} flat postage`
-      : 'Postage shown in your bag';
+  const postage = postageIsFree()
+    ? 'Free shipping, always'
+    : `${formatPrice(Number(shopShipping.amount))} flat postage`;
 
   // Editable in the Words tab. Falls back to what the site has always said, so
   // a store with no content yet reads exactly as before.
@@ -651,7 +689,10 @@ async function fetchLiveProducts() {
     // Kept so the product page can print the real postage figure rather than
     // one written into the page, which would start lying the first time it was
     // changed in the admin panel.
-    if (data.shipping) shopShipping = data.shipping;
+    if (data.shipping) {
+      shopShipping = data.shipping;
+      applyPostageCopy();
+    }
 
     if (data.content) {
       shopCopy = data.content;
@@ -935,6 +976,7 @@ function renderAll(products) {
           <p class="label">Stitch Wishess</p>
           <h1>${escapeHtml(product.title)}</h1>
           ${detailPriceHtml(product)}
+          ${freeShippingNote()}
 
           <!-- Choose, then buy, then read. The descriptions here run to about
                1,100 characters, which on a phone put the add-to-bag button
