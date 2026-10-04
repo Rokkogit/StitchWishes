@@ -8,7 +8,7 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { shopCatalog } from '../lib/pricing.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { resolveCart } from '../lib/cart.mjs';
@@ -57,7 +57,7 @@ export async function handle(request, fetchImpl = fetch) {
   }
 
   const settings = store.settings ?? DEFAULT_SETTINGS;
-  const catalog = visibleProducts(shopCatalog(store.products, SEED, settings));
+  const catalog = visibleProducts(readyCatalog(store.products, SEED));
 
   const { items, problems } = resolveCart(body?.cart, catalog);
 

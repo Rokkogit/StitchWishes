@@ -10,7 +10,7 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { shopCatalog } from '../lib/pricing.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { resolveCart } from '../lib/cart.mjs';
 import { readStripeConfig, verifyWebhook, cartFromMetadata, encodeCart } from '../lib/stripe.mjs';
@@ -89,7 +89,7 @@ export async function handle(request, fetchImpl = fetch) {
   // The catalog supplies the names, designs and choices; Stripe supplies what was
   // actually charged. Neither is asked for what the other knows better.
   const store = await readStore(process.env);
-  const catalog = shopCatalog(store.ok ? store.products : SEED, SEED, store.settings);
+  const catalog = readyCatalog(store.ok ? store.products : SEED, SEED);
 
   const ordered = cartFromMetadata(session.metadata);
   const { items } = resolveCart(ordered, catalog);

@@ -1402,33 +1402,24 @@
     `;
   }
 
-  /* What this piece will read on the site.
+  /* Why the price in this box is the whole price.
 
-     Postage is built into the prices, so the number here is not the number a
-     customer sees. Typing the all-in price into this box would add the postage
-     twice, which is the one mistake this panel can make that shows up on a card
-     statement rather than on a page. So the box says what it is for, and what
-     it produces. */
+     Nothing is added to it at checkout - postage is already meant to be inside
+     it. So this is the number a customer pays, and if it does not cover the
+     stamp, nothing else will. */
   function shownPriceHint(price) {
     const s = state.settings ?? {};
-    const absorbed =
-      s.shipping?.enabled !== false && s.shipping?.includedInPrices !== false
-        ? Number(s.shipping?.amount) || 0
-        : 0;
+    const free = s.shipping?.enabled === false || s.shipping?.includedInPrices !== false;
 
-    if (!absorbed) return '';
-
-    if (price == null || price === '' || !Number.isFinite(Number(price))) {
-      return `<p class="hint">What you earn on the piece. The site adds $${dollars(absorbed)} postage
-              on top and tells the customer shipping is free.</p>`;
+    if (!free) {
+      const amount = Number(s.shipping?.amount) || 0;
+      return amount > 0
+        ? `<p class="hint">$${dollars(amount)} postage is added to this at checkout.</p>`
+        : '';
     }
 
-    const shown = (Math.round(Number(price) * 100) + Math.round(absorbed * 100)) / 100;
-
-    return `<p class="hint">What you earn. On the site this reads
-            <strong>$${dollars(shown)}</strong> &mdash; your $${dollars(price)} plus
-            $${dollars(absorbed)} postage, with shipping shown as free. Change the postage in
-            the Checkout tab and every price moves with it.</p>`;
+    return `<p class="hint">What the customer pays. Shipping is free, so nothing is added to
+            this at checkout &mdash; make sure it covers the postage.</p>`;
   }
 
   function renderPiece() {
@@ -2072,17 +2063,7 @@
     return { tax: tax / 100, total: cents / 100 };
   }
 
-  const previewTotal = (example) => {
-    const s = state.settings;
-    const absorbed =
-      s.shipping?.enabled !== false && s.shipping?.includedInPrices !== false
-        ? Number(s.shipping?.amount) || 0
-        : 0;
-
-    // What they actually hand over: the price as shown on the site, which
-    // already carries the postage, plus anything charged on top of it.
-    return Math.round((previewParts(example).total + absorbed) * 100) / 100;
-  };
+  const previewTotal = (example) => previewParts(example).total;
 
   function chargeRow(charge, kind, index) {
     const id = kind === 'shipping' ? 'shipping' : `fee-${index}`;
@@ -2133,19 +2114,21 @@
         <label class="toggle charges__sub">
           <input type="checkbox" data-charge="shipping" data-charge-field="includedInPrices"
                  ${s.shipping?.includedInPrices !== false ? 'checked' : ''}>
-          <span>Build it into the prices &mdash; customers see free shipping</span>
+          <span>My prices already cover postage &mdash; show free shipping</span>
         </label>
 
         <p class="hint">
           ${s.shipping?.includedInPrices !== false
-            ? `On. Every price on the site shows $${dollars(s.shipping?.amount)} more than you typed
-               in the Catalog tab, and nothing is charged for postage at checkout &mdash; the site
-               says shipping is free, and it is. Change the amount above and every price moves with
-               it; your own prices are never rewritten, so you can switch this off and they are
-               back exactly as they were.`
-            : 'Off. Postage is charged once per order, on its own line in the bag.'}
+            ? `On. Nothing is charged for postage, because your prices already carry it. The site
+               says shipping is free, in the bag and on every piece. Your prices are shown exactly
+               as you typed them &mdash; nothing is added to them anywhere.`
+            : `Off. $${dollars(s.shipping?.amount)} is charged once per order, on its own line in
+               the bag, and the site stops saying shipping is free.`}
         </p>
-        <p class="hint">Switch the row above off entirely and nothing is added anywhere.</p>
+        <p class="hint">
+          The amount above is kept either way, so this switch turns the
+          $${dollars(s.shipping?.amount)} charge straight back on.
+        </p>
       </section>
 
       <section class="charges">
@@ -2203,11 +2186,7 @@
           ${s.shipping?.enabled !== false
             && (Number(s.shipping?.amount) || 0) > 0
             && s.shipping?.includedInPrices !== false
-            ? `<div><dt>Postage, built in</dt><dd>+ $${dollars(s.shipping.amount)}</dd></div>
-               <div><dt>Shown on the site</dt><dd>$${dollars(
-                 (Math.round(Number(example) * 100) + Math.round(Number(s.shipping.amount) * 100)) / 100
-               )}</dd></div>
-               <div><dt>${escapeHtml(s.shipping.label || 'Shipping')} at checkout</dt><dd>Free</dd></div>`
+            ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>Free</dd></div>`
             : s.shipping?.enabled !== false && (Number(s.shipping?.amount) || 0) > 0
               ? `<div><dt>${escapeHtml(s.shipping.label || 'Shipping')}</dt><dd>$${dollars(s.shipping.amount)}</dd></div>`
               : ''}
