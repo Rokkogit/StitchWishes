@@ -247,6 +247,8 @@
           ${problems ? `<ul class="bag-problems" role="status">${problems}</ul>` : ''}
 
           <ul class="bag-items">${quote.items.map(itemHtml).join('')}</ul>
+
+          <a class="bag-back" href="collection.html">Keep looking</a>
         </div>
 
         <!-- The suggestions are their own child of the grid rather than part
@@ -279,8 +281,6 @@
 
           <button class="btn btn-primary bag-total__pay" type="button" data-pay>Pay ${money(quote.total)}</button>
           <p class="bag-total__note" data-pay-note></p>
-
-          <a class="bag-total__back" href="collection.html">Keep looking</a>
         </aside>
 
         ${(() => {

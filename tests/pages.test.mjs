@@ -190,6 +190,18 @@ test('the pay button comes before the upsell, not after it', () => {
   assert.ok(pay < extras, 'the upsell is rendered before the pay button');
 });
 
+test('the way out sits with the items, not under the pay button', () => {
+  // A link back to the catalog directly beneath the button that takes the
+  // money is a way out placed next to the way forward.
+  const bag = readFileSync(new URL('bag.js', DIR), 'utf8');
+
+  const back = bag.indexOf('class="bag-back"');
+  const pay = bag.indexOf('bag-total__pay');
+
+  assert.ok(back > 0, 'the link back to the catalog is gone');
+  assert.ok(back < pay, 'it is still below the pay button');
+});
+
 test('all three parts of the bag stack in one column on a phone', () => {
   // Any of them left in a second column would be off the side of the screen.
   const css = readFileSync(new URL('styles.css', DIR), 'utf8');

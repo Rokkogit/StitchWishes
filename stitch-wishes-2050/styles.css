@@ -1305,16 +1305,22 @@ main {
   text-wrap: pretty;
 }
 
-.bag-total__back {
-  display: block;
+/* Under the items rather than under the pay button.
+
+   Where it was, it was the last thing read before paying - a way out, sitting
+   directly beneath the way forward. Up here it is what it actually means:
+   you have seen what is in the bag, and you can go and add to it. */
+.bag-back {
+  display: inline-block;
   margin-top: var(--s2);
-  text-align: center;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
+
+.bag-back:hover { color: var(--ink-soft); text-decoration: underline; }
 
 /* --------------------------------------------------------- sold out ---- */
 
