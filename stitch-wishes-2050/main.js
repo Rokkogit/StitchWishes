@@ -50,15 +50,42 @@ function mediaHtml(product, modifier) {
 
 /* ---------------------------------------------------------------- gallery */
 
+/* Which photograph the page opens on.
+
+   Not images[0], which on several pieces is the studio's group shot: four
+   pens in a stand, three notebooks, both magnets. The price sits directly
+   under the large photograph, and a photograph of four things wearing one
+   price reads as the price of all four.
+
+   The catalog card gets away with the same photograph because it carries a
+   badge over it saying "8 designs" — the group shot there reads as a range to
+   choose from. The item page has no badge, only a number, so the photograph
+   has to carry the meaning by itself.
+
+   So the page opens on the first photograph of something that can actually be
+   bought. The group shot keeps its place in the strip, because it is the best
+   picture of the range; it just is not what the price is labelling. */
+function openingIndex(entries) {
+  const available = entries.findIndex((entry) => entry.design && entry.design.stock !== 0);
+  if (available !== -1) return available;
+
+  // Everything sold out: still a single piece rather than the set, because the
+  // misreading is about the photograph, not about what is in stock.
+  const anyDesign = entries.findIndex((entry) => entry.design);
+  return anyDesign === -1 ? 0 : anyDesign;
+}
+
 // Every photograph the studio took of a piece, not just the first. Thumbnails
 // are buttons rather than divs so the gallery works from the keyboard.
 function galleryHtml(product) {
   const entries = galleryEntries(product);
   if (!entries.length) return emptyMediaHtml('detail__media');
 
+  const opening = openingIndex(entries);
+
   const main = `
     <div class="detail__media">
-      <img src="${escapeHtml(entries[0].src)}" alt="${escapeHtml(product.title)}" data-gallery-main>
+      <img src="${escapeHtml(entries[opening].src)}" alt="${escapeHtml(product.title)}" data-gallery-main>
     </div>
   `;
 
@@ -76,7 +103,7 @@ function galleryHtml(product) {
         : `Photograph ${index + 1} of ${entries.length}`;
 
       return `
-      <button class="thumb${index === 0 ? ' is-active' : ''}${design ? ' is-design' : ''}${sold ? ' is-gone' : ''}"
+      <button class="thumb${index === opening ? ' is-active' : ''}${design ? ' is-design' : ''}${sold ? ' is-gone' : ''}"
               type="button"
               data-thumb="${escapeHtml(src)}"
               ${design ? `data-design="${escapeHtml(design.id)}"` : ''}
@@ -90,6 +117,30 @@ function galleryHtml(product) {
     .join('');
 
   return `${main}<div class="thumbs">${thumbs}</div>`;
+}
+
+/* What the price line says.
+
+   "each" where a piece comes in several designs, because the photographs on
+   this page are of a set and one number under a set is the price of the set
+   unless it says otherwise. One word, and it is the difference between
+   "$12.99 for these four pens" and "$12.99 for whichever one you pick".
+
+   Not said where there is only ever one of something: "each" on a single
+   mousepad is noise, and noise in a price is not free.
+
+   One function because the line is written into the markup once and rewritten
+   every time a design is chosen. Those two drifting apart is how a page starts
+   saying two different things about one number. */
+function priceLabel(product, design) {
+  const price = design?.price ?? product.price;
+  if (price == null) return '';
+
+  return designsOf(product).length > 1 ? `${formatPrice(price)} each` : formatPrice(price);
+}
+
+function detailPriceHtml(product) {
+  return `<p class="detail__price">${priceLabel(product, null)}</p>`;
 }
 
 // Sits above the button rather than above the strip: it is about what you are
@@ -170,9 +221,8 @@ function choicesHtml(product) {
 function refreshSelection(root, product) {
   const design = designsOf(product).find((d) => d.id === chosen.design) ?? null;
 
-  const price = design?.price ?? product.price;
   const priceNode = root.querySelector('.detail__price');
-  if (priceNode) priceNode.textContent = formatPrice(price);
+  if (priceNode) priceNode.textContent = priceLabel(product, design);
 
   const name = root.querySelector('[data-design-name]');
   if (name) name.textContent = design ? (design.name || 'Selected') : 'Choose one from the photographs';
@@ -884,7 +934,7 @@ function renderAll(products) {
         <div>
           <p class="label">Stitch Wishess</p>
           <h1>${escapeHtml(product.title)}</h1>
-          <p class="detail__price">${formatPrice(product.price)}</p>
+          ${detailPriceHtml(product)}
 
           <!-- Choose, then buy, then read. The descriptions here run to about
                1,100 characters, which on a phone put the add-to-bag button
