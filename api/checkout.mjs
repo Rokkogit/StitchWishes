@@ -8,7 +8,7 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { fillMissingDesigns } from '../lib/seed.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { resolveCart } from '../lib/cart.mjs';
@@ -56,7 +56,7 @@ export async function handle(request, fetchImpl = fetch) {
     return json(503, { error: 'The shop is briefly unavailable. Nothing has been charged.' });
   }
 
-  const catalog = visibleProducts(fillMissingDesigns(store.products, SEED));
+  const catalog = visibleProducts(readyCatalog(store.products, SEED));
   const settings = store.settings ?? DEFAULT_SETTINGS;
 
   const { items, problems } = resolveCart(body?.cart, catalog);

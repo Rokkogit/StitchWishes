@@ -174,10 +174,23 @@ test('an unreachable store falls back to the bundled catalog rather than errorin
     throw new Error('store down');
   };
 
-  const response = await render(request('/p/untitled-may1_12-21'), shellFetch());
+  const response = await render(request('/p/blue-alien-beaded-pens'), shellFetch());
 
   assert.equal(response.status, 200);
   assert.match(await response.text(), /og:title/);
+});
+
+test('an old address redirects even while the store is unreachable', async () => {
+  // The redirect has to come from the same place the page does, or going down
+  // for a minute turns every link ever shared into a 404.
+  globalThis.fetch = async () => {
+    throw new Error('store down');
+  };
+
+  const response = await render(request('/p/untitled-may1_12-21'), shellFetch());
+
+  assert.equal(response.status, 301);
+  assert.match(response.headers.get('Location'), /\/p\/blue-alien-beaded-pens$/);
 });
 
 test('an unfetchable shell still serves correct preview tags', async () => {

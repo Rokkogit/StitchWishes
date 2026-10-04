@@ -22,7 +22,7 @@ import { validateSettings, DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { validateContent, DEFAULT_CONTENT, CONTENT_FIELDS } from '../lib/content.mjs';
 import { PRESETS, themeWarnings } from '../lib/theme.mjs';
 import { ASSETS } from '../lib/assets-manifest.mjs';
-import { fillMissingDesigns } from '../lib/seed.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { list } from '@vercel/blob';
 
@@ -77,7 +77,7 @@ async function handleGet() {
   return json(200, {
     // The editor sees the same catalog the shop does, so designs filled in
     // for an older store are there to review and save rather than invisible.
-    products: fillMissingDesigns(catalog.products, SEED),
+    products: readyCatalog(catalog.products, SEED),
     // Defaults rather than null, so the editor always has a shape to draw and
     // a store with no settings yet is not a special case in the browser.
     settings: catalog.settings ?? DEFAULT_SETTINGS,

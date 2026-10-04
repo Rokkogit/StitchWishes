@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 import { validateContent } from '../lib/content.mjs';
 import { themeVars, validateTheme } from '../lib/theme.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
-import { fillMissingDesigns } from '../lib/seed.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 
 // Global Config takes up to ten seconds to propagate a write, so caching for
@@ -41,7 +41,7 @@ export default {
     // copy. Applied here rather than in the page, so /api/quote sees exactly
     // the same catalog — otherwise the shop would offer a design the checkout
     // would then refuse.
-    const products = fillMissingDesigns(result.products, SEED);
+    const products = readyCatalog(result.products, SEED);
 
     return json(
       200,

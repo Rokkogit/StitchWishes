@@ -10,7 +10,7 @@
 // exactly the thing the Global Config store was added to avoid.
 
 import { readCatalog } from '../lib/global-config.mjs';
-import { fillMissingDesigns } from '../lib/seed.mjs';
+import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { productHead, productBody, escapeHtml, SITE_NAME } from '../lib/page-meta.mjs';
 import { injectHead, injectDetail, injectBase } from '../lib/render.mjs';
@@ -151,7 +151,7 @@ export async function render(request, fetchImpl = fetch) {
   // The bundled catalog rather than an error page. A crawler that gets a 503
   // may drop the URL; a visitor who gets one leaves. The shipped copy is old
   // at worst, and this route's whole job is that the URL always answers.
-  const products = fillMissingDesigns(
+  const products = readyCatalog(
     result.ok && result.seeded ? result.products : SEED,
     SEED
   );
