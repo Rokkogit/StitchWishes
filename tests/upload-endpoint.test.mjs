@@ -1,6 +1,7 @@
 // The upload endpoint, driven with real Request objects.
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import upload from '../api/admin-upload.mjs';
 import { createToken, COOKIE_NAME } from '../lib/session.mjs';
@@ -10,7 +11,13 @@ const SECRET = 'f'.repeat(64);
 const saved = {};
 
 beforeEach(() => {
-  for (const key of ['ADMIN_CODE', 'ADMIN_SESSION_SECRET', 'BLOB_READ_WRITE_TOKEN']) {
+  for (const key of [
+    'ADMIN_CODE',
+    'ADMIN_SESSION_SECRET',
+    'BLOB_READ_WRITE_TOKEN',
+    'BLOB_STORE_ID',
+    'VERCEL_OIDC_TOKEN',
+  ]) {
     saved[key] = process.env[key];
   }
   process.env.ADMIN_CODE = 'test-passphrase-fixture';
@@ -110,17 +117,44 @@ test('an empty body is refused', async () => {
 
 /* ------------------------------------------------------------ not set up */
 
-test('a missing blob token reports configuration, not a crash', async () => {
+test('no credentials at all reports configuration, not a crash', async () => {
+  // Every way of connecting a store removed, so the SDK itself is the thing
+  // that refuses - which is the point. The route no longer decides for itself
+  // whether a store is connected.
   delete process.env.BLOB_READ_WRITE_TOKEN;
+  delete process.env.BLOB_STORE_ID;
+  delete process.env.VERCEL_OIDC_TOKEN;
 
   const response = await upload.fetch(post(photo()));
 
   assert.equal(response.status, 503);
-  assert.match((await response.json()).error, /not set up/i);
+  assert.match((await response.json()).error, /not connected/i);
+});
+
+test('the route does not decide for itself whether a store is connected', () => {
+  // The bug this replaces. Vercel now connects a Blob store with a store id
+  // and a token injected into the runtime, and no BLOB_READ_WRITE_TOKEN
+  // anywhere. Gating on that one variable turned a working store into "photo
+  // storage is not set up yet" - advice to go and do a thing already done.
+  //
+  // Asserted against the source because the alternative is letting the SDK
+  // reach the network from a test. The rule is simple enough to state exactly:
+  // the route must not read that variable at all. The SDK knows every way it
+  // can authenticate; this file knows none of them, deliberately.
+  const route = readFileSync(new URL('../api/admin-upload.mjs', import.meta.url), 'utf8');
+
+  // Reads, not mentions: the comment explaining why names them on purpose.
+  assert.doesNotMatch(
+    route,
+    /process\.env\.(BLOB_|VERCEL_OIDC)/,
+    'the upload route is second-guessing the SDK about credentials again'
+  );
 });
 
 test('the unconfigured message does not leak the variable value', async () => {
   process.env.BLOB_READ_WRITE_TOKEN = '';
+  delete process.env.BLOB_STORE_ID;
+  delete process.env.VERCEL_OIDC_TOKEN;
 
   const body = await (await upload.fetch(post(photo()))).text();
 

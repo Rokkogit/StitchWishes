@@ -30,12 +30,19 @@ export default {
     // this is free file hosting for the whole internet, on your domain.
     if (!authorized(request)) return json(401, { error: 'Sign in first.' });
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('[admin-upload] BLOB_READ_WRITE_TOKEN is unset');
-      return json(503, {
-        error: 'Photo storage is not set up yet. Create a Blob store in the Vercel dashboard.',
-      });
-    }
+    // No pre-flight check for one particular variable.
+    //
+    // There is more than one way for a Blob store to be connected, and this
+    // used to insist on exactly one of them. A store connected the way Vercel
+    // connects them now hands over BLOB_STORE_ID plus a token injected into
+    // the runtime, and no BLOB_READ_WRITE_TOKEN anywhere - so a store that
+    // was connected and working was refused before anything was attempted,
+    // with a message telling her to go and create the store she had already
+    // created.
+    //
+    // The SDK is the one thing that knows every way it can authenticate, and
+    // it says so plainly when it cannot. So it decides, and its answer gets
+    // translated below. A third way to connect a store cannot break this.
 
     const type = request.headers.get('content-type') ?? '';
 
@@ -60,8 +67,21 @@ export default {
 
       return json(200, { url: blob.url, size: body.byteLength });
     } catch (error) {
-      console.error('[admin-upload] blob put failed:', error?.message);
-      return json(502, { error: `Storing the photograph failed: ${error?.message ?? 'unknown error'}` });
+      const said = error?.message ?? 'unknown error';
+
+      // The SDK's own words for "there is nothing here to authenticate with".
+      // Configuration rather than a fault, so it says what to go and do.
+      if (/no blob credentials|no read-write token/i.test(said)) {
+        console.error('[admin-upload] no blob credentials:', said);
+        return json(503, {
+          error:
+            'Photo storage is not connected yet. In Vercel: Storage, open the Blob store, ' +
+            'Connect Project — then redeploy so the setting reaches the site.',
+        });
+      }
+
+      console.error('[admin-upload] blob put failed:', said);
+      return json(502, { error: `Storing the photograph failed: ${said}` });
     }
   },
 };
