@@ -582,6 +582,39 @@
 
 .picker__head h2 { margin: 0; font-size: 1.1rem; }
 
+/* The picker is two groups now: what she has uploaded, and what came with the
+   site. A heading and a count on each, because the question being asked at
+   that moment is usually "where is the one I just took" - and the answer is
+   always the first thumbnail of the first group. */
+.picker__group { margin-bottom: 1.25rem; }
+
+.picker__groupname {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #61605c);
+}
+
+.picker__count {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  font-weight: 400;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.picker__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft, #61605c);
+}
+
 .picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
@@ -1000,6 +1033,19 @@
   font-size: 0.68rem;
   letter-spacing: 0.06em;
   color: var(--ink-soft);
+}
+
+/* An upload that failed has to look like it failed. The old message was
+   written straight onto a node that was replaced in the same tick, so a
+   refused upload showed nothing whatsoever. */
+.picker__status--bad {
+  color: #8a1f3d;
+  background: rgba(168, 69, 106, 0.1);
+}
+
+.picker__status--good {
+  color: #2c7a5a;
+  background: rgba(44, 122, 90, 0.12);
 }
 
 @media (max-width: 560px) {

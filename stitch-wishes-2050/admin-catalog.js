@@ -15,6 +15,12 @@
     settings: { shipping: { label: 'Shipping', amount: 0, enabled: false }, fees: [], tax: { label: 'Sales tax', rate: 0, enabled: false, includeShipping: false } },
     saved: '',         // JSON of the last known server state, for dirty checks
     ordersFilter: 'toship',  // what still has to go out is the useful default
+    // What the picker is currently saying, and how. In state rather than
+    // written straight to the DOM because renderPicker rewrites the whole
+    // panel - and it runs immediately after every upload, so a message put
+    // directly on the node was destroyed in the same tick it appeared. That is
+    // why a failed upload looked exactly like nothing happening at all.
+    pickerNote: null,  // { text, tone: 'working' | 'good' | 'bad' }
     content: null,     // the site's own words
     contentFields: [],  // how to draw the form, sent by the server
     themePresets: [],
@@ -1810,14 +1816,21 @@
     const files = Array.from(input.files ?? []);
     if (!files.length) return;
 
-    const status = $('[data-upload-status]', el.picker);
     const piece = byHandle(state.editing);
     let done = 0;
 
-    const say = (text) => {
+    // Recorded in state, then written to whatever node is on screen now. The
+    // state copy is what survives renderPicker, which runs on the next line
+    // after almost every call to this.
+    const say = (text, tone = 'working') => {
+      state.pickerNote = text ? { text, tone } : null;
+
+      const status = $('[data-upload-status]', el.picker);
       if (!status) return;
+
       status.textContent = text;
-      status.hidden = false;
+      status.hidden = !text;
+      status.className = `picker__status${text ? ` picker__status--${tone}` : ''}`;
     };
 
     for (const file of files) {
@@ -1831,18 +1844,48 @@
         updatePiece(state.editing, { images: [...(piece.images ?? []), url] });
         done += 1;
       } catch (error) {
-        say(error.message);
+        input.value = '';
+        // What went wrong, and what was salvaged. Stopping after the first
+        // failure is right - they are almost always the same failure - but
+        // saying nothing about the ones that did land is not.
+        say(
+          done
+            ? `${error.message} The first ${done} did upload.`
+            : error.message,
+          'bad'
+        );
         renderPicker();
         return;
       }
     }
 
     input.value = '';   // so choosing the same file again still fires
-    say(`Added ${done} photograph${done === 1 ? '' : 's'}.`);
+    say(`Added ${done} photograph${done === 1 ? '' : 's'}.`, 'good');
     renderPicker();
   }
 
   /* -------------------------------------------------------- image picker */
+
+  /* An uploaded photograph lives in the Blob store and is an absolute URL; one
+     that came with the site is a relative path under assets/ and is part of
+     the deployment itself.
+
+     Worth separating in the picker because they are not interchangeable from
+     where she is standing: the top group is everything she has ever added from
+     a phone, newest first, and the bottom group is the shop's original
+     photographs, which no amount of uploading will change. Mixed into one wall
+     of thumbnails, a photo taken a minute ago is somewhere in the middle of
+     forty-four. */
+  const isUploaded = (src) => /^https?:\/\//i.test(String(src ?? ''));
+
+  function groupAssets(assets) {
+    const all = Array.isArray(assets) ? assets : [];
+
+    return {
+      uploaded: all.filter(isUploaded),
+      bundled: all.filter((src) => !isUploaded(src)),
+    };
+  }
 
   function renderPicker() {
     const piece = byHandle(state.editing);
@@ -1853,6 +1896,28 @@
     const used = new Set(
       forDesigns ? designsOf(piece).map((d) => d.image) : piece.images ?? []
     );
+
+    const note = state.pickerNote;
+
+    const thumb = (src) => `
+      <button class="picker__item${used.has(src) ? ' is-used' : ''}" type="button" data-use="${escapeHtml(src)}">
+        <img src="${escapeHtml(src)}" alt="" loading="lazy">
+        ${used.has(src) ? '<span class="picker__tick" aria-hidden="true">&check;</span>' : ''}
+      </button>`;
+
+    const { uploaded, bundled } = groupAssets(state.assets);
+
+    const group = (title, list, empty) => `
+      <section class="picker__group">
+        <h3 class="picker__groupname">${escapeHtml(title)}
+          <span class="picker__count">${list.length}</span>
+        </h3>
+        ${
+          list.length
+            ? `<div class="picker__grid">${list.map(thumb).join('')}</div>`
+            : `<p class="picker__empty">${escapeHtml(empty)}</p>`
+        }
+      </section>`;
 
     el.picker.innerHTML = `
       <div class="picker__panel" role="dialog" aria-modal="true" aria-label="Choose a photograph">
@@ -1866,18 +1931,11 @@
             <button class="btn btn-ghost" type="button" data-close-picker>Done</button>
           </div>
         </div>
-        <p class="picker__status" data-upload-status hidden role="status"></p>
-        <div class="picker__grid">
-          ${state.assets
-            .map(
-              (src) => `
-            <button class="picker__item${used.has(src) ? ' is-used' : ''}" type="button" data-use="${escapeHtml(src)}">
-              <img src="${escapeHtml(src)}" alt="" loading="lazy">
-              ${used.has(src) ? '<span class="picker__tick" aria-hidden="true">&check;</span>' : ''}
-            </button>`
-            )
-            .join('')}
-        </div>
+        <p class="picker__status${note ? ` picker__status--${note.tone}` : ''}"
+           data-upload-status ${note ? '' : 'hidden'} role="status">${escapeHtml(note?.text ?? '')}</p>
+
+        ${group('Photos you uploaded', uploaded, 'Nothing uploaded yet. Use the button above — straight from your phone works.')}
+        ${group('Photos that came with the site', bundled, 'None.')}
       </div>
     `;
     el.picker.hidden = false;
@@ -1885,6 +1943,9 @@
 
   const closePicker = () => {
     state.picking = false;
+    // Closing is the acknowledgement. Keeping it would mean reopening the
+    // picker tomorrow to be told about an upload that failed today.
+    state.pickerNote = null;
     el.picker.hidden = true;
     el.picker.innerHTML = '';
     renderPiece();
