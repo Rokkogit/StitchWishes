@@ -80,6 +80,22 @@ export default {
         });
       }
 
+      // A store created with private access. Its photographs can only be
+      // fetched with a token, and the three things that have to load a product
+      // photograph all fetch it directly and anonymously: a visitor's browser,
+      // Stripe's checkout page, and whatever renders a link preview. So this
+      // is not something to work around in code - it is the wrong kind of
+      // store for the job, and saying which kind is needed is the whole help.
+      if (/private store|private access/i.test(said)) {
+        console.error('[admin-upload] the blob store is private:', said);
+        return json(503, {
+          error:
+            'This photo store was created with private access, so the shop could not show ' +
+            'the photographs it holds. Create a Blob store with PUBLIC access in Vercel and ' +
+            'connect it to this project, then redeploy.',
+        });
+      }
+
       console.error('[admin-upload] blob put failed:', said);
       return json(502, { error: `Storing the photograph failed: ${said}` });
     }

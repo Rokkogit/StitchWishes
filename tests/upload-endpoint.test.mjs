@@ -160,3 +160,20 @@ test('the unconfigured message does not leak the variable value', async () => {
 
   assert.doesNotMatch(body, /vercel_blob_rw/);
 });
+
+test('a private store is reported as the wrong kind of store, not as a crash', async () => {
+  // Product photographs are fetched directly and anonymously by a visitor's
+  // browser, by Stripe's checkout page and by link previews. A private store
+  // hands them out only to whoever carries a token, so there is nothing to
+  // work around here - it is the wrong kind of store, and the message has to
+  // say which kind is needed.
+  const route = readFileSync(new URL('../api/admin-upload.mjs', import.meta.url), 'utf8');
+
+  assert.match(route, /private store\|private access/, 'the private-store case is not recognised');
+  assert.match(route, /PUBLIC access/, 'the message does not say what kind of store to make');
+
+  // And it is configuration rather than a fault, so it answers 503 like the
+  // other configuration cases rather than 502.
+  const branch = route.slice(route.indexOf('private store|private access'));
+  assert.match(branch.slice(0, 600), /json\(503/);
+});
