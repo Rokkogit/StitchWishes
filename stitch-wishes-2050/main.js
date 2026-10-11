@@ -163,7 +163,7 @@ function designStateHtml(product) {
    that is what you pick from. Selecting one swaps the main image, so you are
    always looking at the thing you are about to buy. */
 
-const chosen = { design: null, choices: {} };
+const chosen = { design: null, choices: {}, colour: null };
 
 const designsOf = (product) => product.designs?.options ?? [];
 
@@ -200,6 +200,35 @@ function galleryEntries(product) {
   }
 
   return entries;
+}
+
+/* A colour the customer picks themselves.
+
+   Only on the pieces where she has switched it on, because it is a promise to
+   make the thing in that colour. On a printed mousepad it would be a promise
+   the shop cannot keep.
+
+   A native colour input rather than a grid of swatches: a fixed palette would
+   be the shop deciding for them, and the whole point of this one is that they
+   decide. The hex is shown beside it because a colour with no name is hard to
+   talk about afterwards, and that code is exactly what lands on the order. */
+function colourHtml(product) {
+  const custom = product.customColor;
+  if (!custom?.enabled) return '';
+
+  const start = custom.preset || '#8fd4e6';
+
+  return `
+    <div class="colour" data-colour-field>
+      <label class="label" for="pick-colour">${escapeHtml(custom.label || 'Colour')}</label>
+      <div class="colour__row">
+        <input class="colour__input" type="color" id="pick-colour"
+               value="${escapeHtml(start)}" data-colour>
+        <output class="colour__value" data-colour-value>${escapeHtml(start)}</output>
+      </div>
+      <p class="colour__note">Pick any colour you like &mdash; it is made for you in that one.</p>
+    </div>
+  `;
 }
 
 function choicesHtml(product) {
@@ -391,6 +420,12 @@ function initBuy(root, product) {
   chosen.design = null;
   chosen.choices = {};
 
+  // Starts at whatever the picker opens on, so somebody who likes the default
+  // can simply buy rather than having to touch the control to confirm it.
+  chosen.colour = product.customColor?.enabled
+    ? (product.customColor.preset || '#8fd4e6')
+    : null;
+
   // A single design is not a choice — pick it for them rather than making
   // someone press a button that has no alternative.
   const designs = designsOf(product).filter((design) => design.stock !== 0);
@@ -411,6 +446,18 @@ function initBuy(root, product) {
     }
   });
 
+  const picker = root.querySelector('[data-colour]');
+  if (picker) {
+    const readout = root.querySelector('[data-colour-value]');
+
+    // 'input' rather than 'change': on a phone the colour wheel reports as it
+    // is dragged, and the number beside it should keep up.
+    picker.addEventListener('input', () => {
+      chosen.colour = picker.value;
+      if (readout) readout.textContent = picker.value;
+    });
+  }
+
   const button = root.querySelector('[data-add]');
   if (button) {
     button.addEventListener('click', () => {
@@ -419,6 +466,7 @@ function initBuy(root, product) {
       window.StitchCart?.add(product.handle, 1, {
         design: chosen.design,
         choices: { ...chosen.choices },
+        colour: chosen.colour,
       });
 
       // Straight to the bag rather than a small "Added" line that is easy to
@@ -1155,6 +1203,7 @@ function renderAll(products) {
                decided had to scroll past the sales pitch to act on it. -->
           ${designStateHtml(product)}
           ${choicesHtml(product)}
+          ${colourHtml(product)}
           ${buyHtml(product)}
 
           <div class="detail__desc detail__desc--after"><p>${escapeHtml(product.description)}</p></div>

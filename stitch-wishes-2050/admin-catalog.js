@@ -261,7 +261,15 @@
       price: null,
       description: '',
       images: [],
-      hidden: true,   // new pieces start hidden so nothing half-made goes live
+      // Visible from the start. Starting hidden sounded careful - nothing
+      // half-made goes live - but it meant adding a piece took two saves: one
+      // to store it, then untick Hidden, then another to actually put it on
+      // the site. Two saves to add one thing, with the second easy to forget
+      // and no sign anything was missing.
+      //
+      // Nothing half-made goes live anyway, because nothing goes live until
+      // Save is pressed at all. Hidden is still there for taking a piece down.
+      hidden: false,
     };
 
     state.products.push(piece);
@@ -353,12 +361,23 @@
       .map((choice) => `${escapeHtml(choice.label)}: ${escapeHtml(choice.value)}`)
       .join(', ');
 
+    // A hex code is not something a person can act on. The swatch is what
+    // makes it an instruction she can hold a bead up against; the code stays
+    // next to it because that is the exact thing that was asked for.
+    const colour = item.colour
+      ? `<span class="order__colour">
+           <span class="order__swatch" style="background:${escapeHtml(item.colour)}"></span>
+           ${escapeHtml(item.colourLabel || 'Colour')}: <code>${escapeHtml(item.colour)}</code>
+         </span>`
+      : '';
+
     return `
       <li class="order__line">
         ${item.image ? `<img class="order__thumb" src="${escapeHtml(item.image)}" alt="">` : '<span class="order__thumb order__thumb--none"></span>'}
         <span class="order__what">
           <strong>${escapeHtml(name || 'Untitled piece')}</strong>
           ${choices ? `<span class="order__choices">${choices}</span>` : ''}
+          ${colour}
           ${item.handle ? `<span class="order__handle">${escapeHtml(item.handle)}</span>` : ''}
         </span>
         <span class="order__qty">&times;${item.quantity}</span>
@@ -1501,6 +1520,7 @@
           <textarea class="field field--desc" id="f-desc" rows="9" data-field="description">${escapeHtml(piece.description)}</textarea>
 
           ${designsHtml(piece)}
+          ${colourEditHtml(piece)}
 
           <label class="label" for="f-category">Kind</label>
           <select class="field" id="f-category" data-field="category">
@@ -1627,6 +1647,47 @@
 
         <button class="design-row__drop" type="button" data-drop-design
                 aria-label="Remove this design">&times;</button>
+      </div>
+    `;
+  }
+
+  /* Whether this piece lets a customer choose their own colour.
+
+     Per piece, deliberately. It is a promise to make the thing in whatever
+     colour somebody picks, which is true of resin and beads and not true of a
+     printed mousepad. Shop-wide it would be a promise she could not keep. */
+  function colourEditHtml(piece) {
+    const custom = piece.customColor ?? {};
+    const on = custom.enabled === true;
+
+    return `
+      <div class="designs-edit">
+        <p class="label">Custom colour</p>
+
+        <label class="toggle">
+          <input type="checkbox" data-colour-on ${on ? 'checked' : ''}>
+          <span>Let the customer pick any colour</span>
+        </label>
+
+        ${on
+          ? `<label class="label" for="f-colour-label">What to call it</label>
+             <input class="field" id="f-colour-label"
+                    value="${escapeHtml(custom.label ?? 'Colour')}"
+                    placeholder="Colour" data-colour-label>
+
+             <label class="label" for="f-colour-preset">What the picker opens on</label>
+             <input class="field field--colour" type="color" id="f-colour-preset"
+                    value="${escapeHtml(custom.preset || '#8fd4e6')}" data-colour-preset>
+
+             <p class="hint">
+               The colour they pick travels with the order: it is on the bag, on
+               the Stripe page before they pay, in the order email, and on the
+               Orders tab as a swatch you can hold a bead against.
+             </p>`
+          : `<p class="hint">
+               Off. Turn this on for pieces you make to order in whatever colour
+               is asked for &mdash; not for anything printed or pre-made.
+             </p>`}
       </div>
     `;
   }
@@ -2060,6 +2121,9 @@
   // the cursor would move the caret to the end on every keystroke.
   function onInput(event) {
     if (event.target.closest('[data-design-field]')) return onDesignInput(event);
+    if (event.target.closest('[data-colour-label], [data-colour-preset]')) {
+      return onColourField(event);
+    }
 
     const field = event.target.closest('[data-field]');
     if (!field || !state.editing) return;
@@ -2112,7 +2176,42 @@
 
   // The address line and card titles do need to follow the fields, but only
   // once typing stops.
+  /* The custom-colour controls.
+
+     Switching it off drops the whole block rather than leaving enabled: false
+     behind: the catalog treats "not offered" and "offered but off" as the same
+     thing, so storing the second would be a difference that means nothing. */
+  function onColourField(event) {
+    const piece = byHandle(state.editing);
+    if (!piece) return;
+
+    if (event.target.closest('[data-colour-on]')) {
+      piece.customColor = event.target.checked
+        ? { label: 'Colour', preset: '#8fd4e6', ...(piece.customColor ?? {}), enabled: true }
+        : null;
+
+      touch();
+      renderPiece();
+      return;
+    }
+
+    const label = event.target.closest('[data-colour-label]');
+    if (label && piece.customColor) {
+      piece.customColor = { ...piece.customColor, label: label.value };
+      touch();
+      return;
+    }
+
+    const preset = event.target.closest('[data-colour-preset]');
+    if (preset && piece.customColor) {
+      piece.customColor = { ...piece.customColor, preset: preset.value };
+      touch();
+    }
+  }
+
   function onChange(event) {
+    if (event.target.closest('[data-colour-on]')) return onColourField(event);
+
     if (event.target.closest('[data-field="handle"]')) renderPiece();
   }
 

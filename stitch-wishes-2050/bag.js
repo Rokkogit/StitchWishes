@@ -67,7 +67,7 @@
     for (const line of window.StitchCart.read()) {
       const permitted = allowed.get(key(line.handle, line.design)) ?? 0;
       if (permitted !== line.quantity) {
-        window.StitchCart.setQuantity(line.handle, permitted, line.design ?? null);
+        window.StitchCart.setQuantity(line.handle, permitted, line.design ?? null, line.colour ?? null);
       }
     }
   }
@@ -111,6 +111,16 @@
       .map((line) => `<p class="bag-item__variant">${line}</p>`)
       .join('');
 
+    // Shown as the colour itself, not as six characters of hex. Two rows of
+    // the same piece in two colours are otherwise identical on screen, and the
+    // one thing that tells them apart is the one thing a person cannot read.
+    const colour = item.colour
+      ? `<p class="bag-item__variant bag-item__colour">
+           <span class="bag-item__swatch" style="background:${escapeHtml(item.colour)}"></span>
+           ${escapeHtml(item.colourLabel || 'Colour')}: ${escapeHtml(item.colour)}
+         </p>`
+      : '';
+
     const design = escapeHtml(item.design ?? '');
 
     return `
@@ -121,17 +131,18 @@
             ${escapeHtml(item.title)}
           </a>
           ${variant}
+          ${colour}
           <p class="bag-item__price">${money(item.price)} each</p>
         </div>
 
         <div class="stepper" role="group" aria-label="How many">
-          <button type="button" data-less="${escapeHtml(item.handle)}" data-design="${design}" aria-label="One fewer">&minus;</button>
+          <button type="button" data-less="${escapeHtml(item.handle)}" data-design="${design}" data-colour="${escapeHtml(item.colour ?? '')}" aria-label="One fewer">&minus;</button>
           <span>${item.quantity}</span>
-          <button type="button" data-more="${escapeHtml(item.handle)}" data-design="${design}" aria-label="One more">+</button>
+          <button type="button" data-more="${escapeHtml(item.handle)}" data-design="${design}" data-colour="${escapeHtml(item.colour ?? '')}" aria-label="One more">+</button>
         </div>
 
         <p class="bag-item__line">${money(item.price * item.quantity)}</p>
-        <button class="bag-item__drop" type="button" data-drop="${escapeHtml(item.handle)}" data-design="${design}"
+        <button class="bag-item__drop" type="button" data-drop="${escapeHtml(item.handle)}" data-design="${design}" data-colour="${escapeHtml(item.colour ?? '')}"
                 aria-label="Remove ${escapeHtml(item.title)}">&times;</button>
       </li>
     `;
@@ -301,6 +312,9 @@
     // An empty data-design means the piece has no designs, which is a real
     // value rather than a missing one.
     const designOf = (node) => node.dataset.design || null;
+    // Same reasoning: an empty data-colour means the piece has no colour,
+    // which is a real value rather than a missing one.
+    const colourOf = (node) => node.dataset.colour || null;
 
     const more = hit('data-more');
     if (more) {
@@ -308,7 +322,7 @@
       const line = window.StitchCart.read().find(
         (l) => l.handle === more.dataset.more && (l.design ?? null) === design
       );
-      window.StitchCart.setQuantity(more.dataset.more, (line?.quantity ?? 0) + 1, design);
+      window.StitchCart.setQuantity(more.dataset.more, (line?.quantity ?? 0) + 1, design, colourOf(more));
       return price();
     }
 
@@ -318,13 +332,13 @@
       const line = window.StitchCart.read().find(
         (l) => l.handle === less.dataset.less && (l.design ?? null) === design
       );
-      window.StitchCart.setQuantity(less.dataset.less, (line?.quantity ?? 1) - 1, design);
+      window.StitchCart.setQuantity(less.dataset.less, (line?.quantity ?? 1) - 1, design, colourOf(less));
       return price();
     }
 
     const drop = hit('data-drop');
     if (drop) {
-      window.StitchCart.remove(drop.dataset.drop, designOf(drop));
+      window.StitchCart.remove(drop.dataset.drop, designOf(drop), colourOf(drop));
       return price();
     }
 

@@ -33,32 +33,39 @@
 
   const count = () => read().reduce((total, line) => total + (line.quantity || 0), 0);
 
-  // A piece and a design together identify a line: two designs of the same
-  // sign are two different things to make and to ship.
-  const same = (line, handle, design) =>
-    line.handle === handle && (line.design ?? null) === (design ?? null);
+  // A piece, a design and a colour together identify a line: two designs of
+  // the same sign are two different things to make and to ship, and so are two
+  // colours of the same piece. The server works this out again for itself -
+  // this copy exists so the two never disagree about what is one row.
+  const same = (line, handle, design, colour) =>
+    line.handle === handle &&
+    (line.design ?? null) === (design ?? null) &&
+    (line.colour ?? null) === (colour ?? null);
 
-  function add(handle, quantity = 1, { design = null, choices = {} } = {}) {
+  function add(handle, quantity = 1, { design = null, choices = {}, colour = null } = {}) {
     const lines = read();
-    const existing = lines.find((line) => same(line, handle, design));
+    const existing = lines.find((line) => same(line, handle, design, colour));
 
     if (existing) existing.quantity += quantity;
-    else lines.push({ handle, design, choices, quantity });
+    else lines.push({ handle, design, choices, colour, quantity });
 
     write(lines);
   }
 
-  function setQuantity(handle, quantity, design = null) {
+  function setQuantity(handle, quantity, design = null, colour = null) {
     const lines = read();
-    const existing = lines.find((line) => same(line, handle, design));
-    const rest = lines.filter((line) => !same(line, handle, design));
+    const existing = lines.find((line) => same(line, handle, design, colour));
+    const rest = lines.filter((line) => !same(line, handle, design, colour));
 
-    if (quantity > 0) rest.push({ ...(existing ?? { handle, design, choices: {} }), quantity });
+    if (quantity > 0) {
+      rest.push({ ...(existing ?? { handle, design, choices: {}, colour }), quantity });
+    }
 
     write(rest);
   }
 
-  const remove = (handle, design = null) => setQuantity(handle, 0, design);
+  const remove = (handle, design = null, colour = null) =>
+    setQuantity(handle, 0, design, colour);
 
   const clear = () => write([]);
 

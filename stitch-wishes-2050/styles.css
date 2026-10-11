@@ -1923,6 +1923,60 @@ main {
   .detail__ship { font-size: 0.8rem; margin-top: -0.4rem; }
 }
 
+/* ------------------------------------------------- the colour picker ---- */
+/*
+   A native colour input, deliberately. A grid of swatches would be the shop
+   choosing for them, and the whole point of this control is that they choose.
+*/
+.colour { margin-bottom: var(--s3); }
+
+.colour__row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.3rem;
+}
+
+/* The browser's own control is a small grey box with a colour inside it. This
+   makes the colour the whole control, which is what it is for. */
+.colour__input {
+  inline-size: 3.4rem;
+  block-size: 2.4rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) / 2);
+  background: none;
+  cursor: pointer;
+}
+
+.colour__input::-webkit-color-swatch-wrapper { padding: 3px; }
+.colour__input::-webkit-color-swatch { border: none; border-radius: calc(var(--radius) / 3); }
+.colour__input::-moz-color-swatch { border: none; border-radius: calc(var(--radius) / 3); }
+
+.colour__value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.colour__note {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* In the bag, where two rows of one piece differ only by this. */
+.bag-item__colour { display: flex; align-items: center; gap: 0.4rem; }
+
+.bag-item__swatch {
+  inline-size: 0.8rem;
+  block-size: 0.8rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  flex: none;
+}
+
 /* ------------------------------------- the piece, on one phone screen ---- */
 /*
    Everything needed to decide - photograph, the designs, name, price, choose,

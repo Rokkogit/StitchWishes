@@ -1577,3 +1577,31 @@ button.charge__drop:hover { color: var(--alert); border-color: rgba(168, 69, 106
 }
 
 input[type='range'] { width: 100%; accent-color: var(--holo-ink); }
+
+/* ------------------------------------------- a colour somebody asked for -- */
+/*
+   On the Orders tab the swatch is the instruction. A hex code is not something
+   anyone can hold a bead up against; the code stays beside it because that is
+   the exact thing that was asked for.
+*/
+.order__colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.order__swatch {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex: none;
+}
+
+/* The picker in the piece editor, so it reads as a field like the others. */
+.field--colour {
+  inline-size: 4rem;
+  block-size: 2.4rem;
+  padding: 0.2rem;
+  cursor: pointer;
+}

@@ -113,3 +113,33 @@ test('what counts as uploaded is the thing that is actually true of it', () => {
   assert.equal(isUploaded(''), false);
   assert.equal(isUploaded(null), false);
 });
+
+/* ---------------------------------------------------- adding a new piece */
+
+test('a new piece is visible, so adding one takes a single save', () => {
+  // It used to be created hidden. That meant save, untick Hidden, save again -
+  // two saves to add one thing, with the second easy to forget and nothing on
+  // screen to say the piece was still not on the site.
+  const js = read('admin-catalog.js');
+  const add = js.slice(js.indexOf('function addPiece()'), js.indexOf('function removePiece('));
+
+  assert.match(add, /hidden: false/, 'a new piece is created hidden again');
+  assert.doesNotMatch(add, /hidden: true/);
+});
+
+test('the custom colour is offered per piece, not shop-wide', () => {
+  // It is a promise to make the thing in whatever colour is asked for. True of
+  // resin and beads, not true of a printed mousepad.
+  const js = read('admin-catalog.js');
+
+  assert.match(js, /function colourEditHtml/);
+  assert.match(js, /data-colour-on/, 'there is no switch for it');
+  assert.match(js, /data-colour-label/, 'it cannot be named');
+});
+
+test('switching the colour off clears it rather than storing a disabled one', () => {
+  const js = read('admin-catalog.js');
+  const handler = js.slice(js.indexOf('function onColourField'), js.indexOf('function onChange'));
+
+  assert.match(handler, /: null;/, 'switching it off leaves a disabled block behind');
+});
