@@ -676,6 +676,7 @@
     el.ordersPanel.hidden = name !== 'orders';
     el.lookPanel.hidden = name !== 'look';
     el.checkoutPanel.hidden = name !== 'checkout';
+    el.promotionsPanel.hidden = name !== 'promotions';
     el.homepagePanel.hidden = name !== 'homepage';
 
     for (const button of document.querySelectorAll('[data-tab]')) {
@@ -685,6 +686,7 @@
     }
 
     if (name === 'homepage') renderHomepage();
+    else if (name === 'promotions') renderPromotions();
     else if (name === 'checkout') renderCheckout();
     else if (name === 'orders') loadOrders();
     else if (name === 'look') renderLook();
@@ -2071,6 +2073,12 @@
       state.picking = 'images';
       return renderPicker();
     }
+    const addPromo = hit('data-add-promo');
+    if (addPromo) return addPromotion(addPromo.dataset.addPromo);
+
+    const dropPromo = hit('data-drop-promo');
+    if (dropPromo) return removePromotion(Number(dropPromo.closest('[data-promo]').dataset.promo));
+
     if (hit('data-close-picker')) return closePicker();
 
     const use = hit('data-use');
@@ -2120,6 +2128,7 @@
   // Typing updates the draft but never re-renders: rebuilding the form under
   // the cursor would move the caret to the end on every keystroke.
   function onInput(event) {
+    if (event.target.closest('[data-promo-field]')) return onPromoField(event);
     if (event.target.closest('[data-design-field]')) return onDesignInput(event);
     if (event.target.closest('[data-colour-label], [data-colour-preset]')) {
       return onColourField(event);
@@ -2210,6 +2219,7 @@
   }
 
   function onChange(event) {
+    if (event.target.closest('[data-promo-field]')) return onPromoField(event);
     if (event.target.closest('[data-colour-on]')) return onColourField(event);
 
     if (event.target.closest('[data-field="handle"]')) renderPiece();
@@ -2292,6 +2302,267 @@
         ${over ? `<p class="charge__warn">The most you can charge here is ${MAX_AMOUNT}.</p>` : ''}
       </div>
     `;
+  }
+
+  /* ----------------------------------------------------------- promotions */
+  /*
+     Four ways to take money off, in one list.
+
+     Each row says what it does in a sentence before it says how it is
+     configured, because "20% off everything, ends Sunday" is the question
+     somebody actually has, and "percent: 20, scope: all" is the answer to a
+     different one.
+
+     The status chip is the other half of that. A promotion that is switched
+     off, or finished, or not started yet, looks identical in a form full of
+     fields. Saying which, on the row, is the difference between trusting the
+     list and checking the dates by hand.
+  */
+
+  const PROMO_KINDS = [
+    { id: 'code', label: 'Discount code', hint: 'A code someone types in the bag.' },
+    { id: 'sale', label: 'Sale', hint: 'Automatic, between two dates. Shows a struck-through price.' },
+    { id: 'bundle', label: 'Bundle deal', hint: 'Buy several, the cheapest one is free.' },
+    { id: 'spend', label: 'Spend and save', hint: 'Spend enough, get money off.' },
+  ];
+
+  const promotions = () => (state.settings.promotions ??= []);
+
+  const promoUsed = (promo) => Number(state.promotionUsage?.[promo.id] ?? 0);
+
+  const asDate = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+
+  const titleOf = (handle) => byHandle(handle)?.title ?? null;
+
+  const labelForCategory = (id) =>
+    (state.content?.categories ?? []).find((entry) => entry.id === id)?.label ?? null;
+
+  // Mirrors statusOf in lib/promotions.mjs. The server decides for real; this
+  // only has to agree with it on screen.
+  function promoStatus(promo) {
+    if (promo.enabled === false) return 'off';
+
+    const now = Date.now();
+    if (promo.starts && now < promo.starts) return 'scheduled';
+    if (promo.ends && now > promo.ends) return 'ended';
+    if (promo.kind === 'code' && promo.limit && promoUsed(promo) >= promo.limit) return 'used up';
+
+    return 'live';
+  }
+
+  // What this promotion actually does, in words.
+  function promoSentence(promo) {
+    const off = promo.percent ? promo.percent + '% off' : '$' + dollars(promo.amount) + ' off';
+
+    const where =
+      promo.scope === 'category'
+        ? ' ' + escapeHtml(labelForCategory(promo.target) || promo.target || 'a kind')
+        : promo.scope === 'piece'
+          ? ' ' + escapeHtml(titleOf(promo.target) || promo.target || 'one piece')
+          : ' everything';
+
+    if (promo.kind === 'bundle') return 'Buy ' + (promo.buy ?? 2) + ' of' + where + ', cheapest free';
+    if (promo.kind === 'spend') return 'Spend $' + dollars(promo.spend) + ', get ' + off;
+    if (promo.kind === 'code') return off + where + ' with code ' + escapeHtml(promo.code || '');
+
+    return off + where;
+  }
+
+  function promoRowHtml(promo, index) {
+    const status = promoStatus(promo);
+    const isCode = promo.kind === 'code';
+
+    return `
+      <div class="promo${promo.enabled === false ? ' is-off' : ''}" data-promo="${index}">
+        <div class="promo__head">
+          <label class="toggle">
+            <input type="checkbox" data-promo-field="enabled" ${promo.enabled === false ? '' : 'checked'}>
+            <span class="sr-only">Running</span>
+          </label>
+          <p class="promo__says">${promoSentence(promo)}</p>
+          <span class="flag flag--${status === 'live' ? 'sent' : 'warn'}">${status}</span>
+          <button class="promo__drop" type="button" data-drop-promo title="Remove this promotion">&times;</button>
+        </div>
+
+        <div class="promo__fields">
+          <label class="label">What to call it</label>
+          <input class="field" value="${escapeHtml(promo.label ?? '')}" data-promo-field="label"
+                 placeholder="Shown to the customer on their order">
+
+          ${isCode
+            ? `<label class="label">The code</label>
+               <input class="field field--mono" value="${escapeHtml(promo.code ?? '')}"
+                      data-promo-field="code" placeholder="SAVE10" autocapitalize="characters">`
+            : ''}
+
+          ${promo.kind === 'bundle'
+            ? `<label class="label">Buy how many</label>
+               <input class="field field--mono" inputmode="numeric"
+                      value="${escapeHtml(promo.buy ?? 2)}" data-promo-field="buy">
+               <p class="hint">The cheapest of every ${escapeHtml(promo.buy ?? 2)} is free.</p>`
+            : `<label class="label">How much comes off</label>
+               <div class="promo__amount">
+                 <input class="field field--mono" inputmode="decimal"
+                        value="${escapeHtml(promo.percent ?? '')}" data-promo-field="percent" placeholder="10">
+                 <span>%</span>
+                 <span class="promo__or">or</span>
+                 <span>$</span>
+                 <input class="field field--mono" inputmode="decimal"
+                        value="${escapeHtml(promo.amount ?? '')}" data-promo-field="amount" placeholder="5">
+               </div>
+               <p class="hint">Fill in one. Typing in either clears the other.</p>`}
+
+          ${promo.kind === 'spend'
+            ? `<label class="label">They have to spend at least</label>
+               <div class="promo__amount"><span>$</span>
+                 <input class="field field--mono" inputmode="decimal"
+                        value="${escapeHtml(promo.spend ?? '')}" data-promo-field="spend" placeholder="50">
+               </div>`
+            : ''}
+
+          <label class="label">What it applies to</label>
+          <select class="field" data-promo-field="scope">
+            <option value="all" ${promo.scope === 'all' ? 'selected' : ''}>Everything</option>
+            <option value="category" ${promo.scope === 'category' ? 'selected' : ''}>One kind</option>
+            <option value="piece" ${promo.scope === 'piece' ? 'selected' : ''}>One piece</option>
+          </select>
+
+          ${promo.scope === 'category'
+            ? `<select class="field" data-promo-field="target">
+                 <option value="">Choose a kind</option>
+                 ${(state.content?.categories ?? [])
+                   .map((entry) => `<option value="${escapeHtml(entry.id)}" ${promo.target === entry.id ? 'selected' : ''}>${escapeHtml(entry.label)}</option>`)
+                   .join('')}
+               </select>`
+            : ''}
+
+          ${promo.scope === 'piece'
+            ? `<select class="field" data-promo-field="target">
+                 <option value="">Choose a piece</option>
+                 ${state.products
+                   .map((piece) => `<option value="${escapeHtml(piece.handle)}" ${promo.target === piece.handle ? 'selected' : ''}>${escapeHtml(piece.title)}</option>`)
+                   .join('')}
+               </select>`
+            : ''}
+
+          <div class="promo__dates">
+            <div>
+              <label class="label">Starts</label>
+              <input class="field" type="date" value="${asDate(promo.starts)}" data-promo-field="starts">
+            </div>
+            <div>
+              <label class="label">Ends</label>
+              <input class="field" type="date" value="${asDate(promo.ends)}" data-promo-field="ends">
+            </div>
+          </div>
+          <p class="hint">Leave empty for no limit. A sale starts and stops on its own.</p>
+
+          ${isCode
+            ? `<label class="label">How many times it can be used</label>
+               <input class="field field--mono" inputmode="numeric"
+                      value="${escapeHtml(promo.limit ?? '')}" data-promo-field="limit" placeholder="No limit">
+               <p class="hint">Counted when an order is paid for, not when somebody types it, so an
+                 abandoned bag never uses one up.${promoUsed(promo) ? ` Used ${promoUsed(promo)} so far.` : ''}</p>`
+            : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPromotions() {
+    const list = promotions();
+
+    el.promotionsPanel.innerHTML = `
+      <div class="admin-head"><div>
+        <h1>Promotions</h1>
+        <p class="admin-sub">Ways to take money off. Nothing ever comes off postage or tax.</p>
+      </div></div>
+
+      ${list.length
+        ? `<div class="promos">${list.map(promoRowHtml).join('')}</div>`
+        : `<p class="hint">Nothing running yet. Add a discount code to put in an Instagram story,
+             or a sale that starts on Friday and stops on Monday without you touching it.</p>`}
+
+      <section class="charges">
+        <p class="label">Add one</p>
+        <div class="promo__add">
+          ${PROMO_KINDS.map(
+            (kind) =>
+              `<button class="btn btn-ghost" type="button" data-add-promo="${kind.id}">${escapeHtml(kind.label)}</button>`
+          ).join('')}
+        </div>
+        <ul class="hint promo__kinds">
+          ${PROMO_KINDS.map(
+            (kind) => `<li><strong>${escapeHtml(kind.label)}</strong> &mdash; ${escapeHtml(kind.hint)}</li>`
+          ).join('')}
+        </ul>
+      </section>
+
+      <p class="hint hint--warn">
+        One discount code per order. Sales, bundles and spend rewards apply on top of a
+        code, and what comes off altogether can never be more than the pieces are worth.
+      </p>
+    `;
+  }
+
+  function addPromotion(kind) {
+    promotions().push({
+      id: `promo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      kind,
+      label: PROMO_KINDS.find((entry) => entry.id === kind)?.label ?? 'Discount',
+      enabled: true,
+      scope: 'all',
+      ...(kind === 'bundle' ? { buy: 3 } : {}),
+      ...(kind === 'code' ? { code: '' } : {}),
+    });
+
+    touch();
+    renderPromotions();
+  }
+
+  function removePromotion(index) {
+    const promo = promotions()[index];
+    if (!promo) return;
+    if (!window.confirm(`Remove "${promo.label}"?`)) return;
+
+    promotions().splice(index, 1);
+    touch();
+    renderPromotions();
+  }
+
+  function onPromoField(event) {
+    const row = event.target.closest('[data-promo]');
+    if (!row) return;
+
+    const promo = promotions()[Number(row.dataset.promo)];
+    if (!promo) return;
+
+    const name = event.target.dataset.promoField;
+    const value = event.target.value;
+
+    if (name === 'enabled') promo.enabled = event.target.checked;
+    else if (name === 'code') promo.code = value.toUpperCase().replace(/\s+/g, '');
+    else if (['percent', 'amount', 'spend', 'buy', 'limit'].includes(name)) {
+      promo[name] = value.trim() === '' ? null : Number(value);
+
+      // Both set is a promotion that cannot say what it does, so one clears
+      // the other rather than the server having to choose later.
+      if (name === 'percent' && promo.percent) promo.amount = null;
+      if (name === 'amount' && promo.amount) promo.percent = null;
+    } else if (name === 'starts' || name === 'ends') {
+      promo[name] = value ? Date.parse(value) : null;
+    } else promo[name] = value;
+
+    touch();
+
+    // The sentence, the chip and which fields are shown all follow the scope
+    // and the dates, so those redraw. Typing in a text box must not, or the
+    // caret jumps to the end on every keystroke.
+    if (['enabled', 'scope', 'starts', 'ends', 'target'].includes(name)) renderPromotions();
+    else {
+      const says = row.querySelector('.promo__says');
+      if (says) says.innerHTML = promoSentence(promo);
+    }
   }
 
   function renderCheckout() {
@@ -2539,6 +2810,7 @@
     el.lookPanel.addEventListener('input', onLookInput);
     el.lookPanel.addEventListener('click', onLookClick);
     el.checkoutPanel = $('[data-checkout]');
+    el.promotionsPanel = $('[data-promotions]');
     el.homepagePanel = $('[data-homepage]');
 
     el.ordersPanel.addEventListener('click', onOrdersClick);

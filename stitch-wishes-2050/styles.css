@@ -2311,3 +2311,22 @@ main {
     overscroll-behavior-x: contain;
   }
 }
+
+/* ------------------------------------------------- a code, and what it took */
+/*
+   The code box sits under the total and above the button, because it is the
+   last thing somebody does before paying and the first thing they look for if
+   they were given one.
+*/
+.bag-code { margin: var(--s2) 0; }
+
+.bag-code__row { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
+.bag-code__row .field { flex: 1 1 auto; min-width: 0; text-transform: uppercase; }
+.bag-code__row .btn { flex: none; }
+
+.bag-code__note { margin: 0.4rem 0 0; font-size: 0.82rem; }
+.bag-code__note--good { color: #2c7a5a; }
+.bag-code__note--bad { color: var(--alert, #a8456a); }
+
+/* Money coming off reads as money coming off. */
+.bag-total__off dd { color: #2c7a5a; font-weight: 600; }

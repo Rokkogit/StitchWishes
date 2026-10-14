@@ -12,10 +12,8 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { resolveCart } from '../lib/cart.mjs';
-import { readyCatalog } from '../lib/seed.mjs';
+import { priceOrder } from '../lib/pricing.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
-import { orderTotal } from '../lib/settings.mjs';
 import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 
 export default {
@@ -35,12 +33,16 @@ export default {
       return json(503, { error: 'The shop is briefly unavailable. Try again in a moment.' });
     }
 
-    // The same filling-in the storefront gets, so a design offered there is
-    // a design that can actually be bought here.
-    const settings = store.settings ?? DEFAULT_SETTINGS;
-    const catalog = readyCatalog(store.products, SEED);
-    const { items, problems } = resolveCart(body?.cart, catalog);
-    const totals = orderTotal(items, settings);
+    // One pricing path, shared with the checkout, so the bag and the charge
+    // cannot drift apart. Sales, the cart, discounts and totals in that order.
+    const { items, problems, totals, code, codeProblem } = priceOrder({
+      cart: body?.cart,
+      products: store.products,
+      seed: SEED,
+      settings: store.settings ?? DEFAULT_SETTINGS,
+      code: body?.code,
+      usage: store.promotionUsage,
+    });
 
     return json(
       200,
@@ -53,8 +55,13 @@ export default {
         tax: totals.tax,
         shipping: totals.shipping,
         fees: totals.fees,
+        discount: totals.discount,
         total: totals.total,
         lines: totals.lines,
+        // Which code was applied, and why one was not. A customer who typed a
+        // code and sees no change assumes the shop is broken.
+        code,
+        codeProblem,
       },
       { 'Cache-Control': 'no-store' }
     );

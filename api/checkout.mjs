@@ -8,12 +8,12 @@
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
-import { readyCatalog } from '../lib/seed.mjs';
+import { priceOrder } from '../lib/pricing.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { resolveCart } from '../lib/cart.mjs';
 import { orderTotal, DEFAULT_SETTINGS } from '../lib/settings.mjs';
-import { readStripeConfig, createCheckoutSession } from '../lib/stripe.mjs';
+import { readStripeConfig, createCheckoutSession, createCoupon } from '../lib/stripe.mjs';
 import { checkedSessionParams } from '../lib/checkout.mjs';
 import { orderReference } from '../lib/notify.mjs';
 
@@ -57,9 +57,17 @@ export async function handle(request, fetchImpl = fetch) {
   }
 
   const settings = store.settings ?? DEFAULT_SETTINGS;
-  const catalog = visibleProducts(readyCatalog(store.products, SEED));
 
-  const { items, problems } = resolveCart(body?.cart, catalog);
+  // The same pricing the bag was shown, worked out the same way. The mismatch
+  // check below is a seatbelt; this is what stops it ever being needed.
+  const { items, problems, totals, code } = priceOrder({
+    cart: body?.cart,
+    products: store.products,
+    seed: SEED,
+    settings,
+    code: body?.code,
+    usage: store.promotionUsage,
+  });
 
   // Anything reduced or removed goes back to the page instead of to Stripe. A
   // customer should see "only 2 left, the rest were removed" in their bag, not
@@ -75,8 +83,40 @@ export async function handle(request, fetchImpl = fetch) {
     return json(400, { error: 'There is nothing in your bag.' });
   }
 
-  const totals = orderTotal(items, settings);
   const reference = orderReference();
+
+  // Which promotion the code belonged to, by id rather than by the word the
+  // customer typed - a code can be renamed and the count should follow it.
+  const appliedPromoId = (config, typed) =>
+    typed
+      ? ((config.promotions ?? []).find((promo) => promo.kind === 'code' && promo.code === typed)?.id ?? null)
+      : null;
+
+  // A coupon for exactly this order's discount, made just before the session
+  // and used by it alone. Made here rather than in lib/checkout.mjs because it
+  // is a call to Stripe, and that file is pure so the totals can be asserted
+  // without a network.
+  let coupon = null;
+
+  if (totals.discount > 0) {
+    const made = await createCoupon(
+      config,
+      {
+        amountOffCents: Math.round(totals.discount * 100),
+        name: (totals.lines.find((line) => line.discount)?.label ?? 'Discount').replace(/^-/, ''),
+      },
+      fetchImpl
+    );
+
+    if (!made.ok) {
+      // The discount was shown in the bag. Charging full price because Stripe
+      // would not make a coupon is the one outcome worse than not selling.
+      console.error(`[checkout] coupon refused: ${made.reason} ${made.detail ?? ''}`);
+      return json(502, { error: 'The discount could not be applied. Nothing has been charged.' });
+    }
+
+    coupon = made.value?.id ?? null;
+  }
 
   const checked = checkedSessionParams({
     items,
@@ -84,6 +124,8 @@ export async function handle(request, fetchImpl = fetch) {
     settings,
     origin: originOf(request),
     reference,
+    coupon,
+    promoId: appliedPromoId(settings, code),
   });
 
   // The two totals disagreeing means a bug in this code, not bad input. Refusing

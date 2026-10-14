@@ -143,3 +143,56 @@ test('switching the colour off clears it rather than storing a disabled one', ()
 
   assert.match(handler, /: null;/, 'switching it off leaves a disabled block behind');
 });
+
+/* ---------------------------------------------------------- promotions */
+
+test('the promotions tab exists and has a panel to draw into', () => {
+  // A tab with no panel switches to a blank screen, which is the failure the
+  // rest of this file was written about.
+  const html = read('admin.html');
+
+  assert.match(html, /data-tab="promotions"/, 'there is no Promotions tab');
+  assert.match(html, /data-promotions role="tabpanel"/, 'the tab has nowhere to render');
+});
+
+test('every admin tab has a panel, and every panel has a tab', () => {
+  // The general version, so the next tab added cannot be half-wired.
+  const html = read('admin.html');
+
+  const tabs = [...html.matchAll(/data-tab="([a-z]+)"/g)].map((m) => m[1]);
+  const panels = [...html.matchAll(/<main[^>]*data-([a-z]+) role="tabpanel"/g)].map((m) => m[1]);
+
+  assert.deepEqual(tabs.sort(), panels.sort());
+});
+
+test('switching to the promotions tab draws it', () => {
+  const js = read('admin-catalog.js');
+
+  assert.match(js, /name === 'promotions'\) renderPromotions\(\)/);
+  assert.match(js, /el\.promotionsPanel\.hidden = name !== 'promotions'/);
+  assert.match(js, /el\.promotionsPanel = \$\('\[data-promotions\]'\)/);
+});
+
+test('the panel agrees with the server about what counts as live', () => {
+  // promoStatus mirrors statusOf in lib/promotions.mjs. The server decides for
+  // real; this only has to say the same thing on screen.
+  const js = read('admin-catalog.js');
+  const fn = js.slice(js.indexOf('function promoStatus'), js.indexOf('function promoSentence'));
+
+  for (const state of ['off', 'scheduled', 'ended', 'used up', 'live']) {
+    assert.ok(fn.includes(`'${state}'`), `the panel cannot show "${state}"`);
+  }
+});
+
+test('the bag can take a code and say what happened to it', () => {
+  const bag = readFileSync(new URL('../stitch-wishes-2050/bag.js', import.meta.url), 'utf8');
+
+  assert.match(bag, /data-code-form/, 'there is nowhere to type a code');
+  assert.match(bag, /codeProblem/, 'a refused code would fail silently');
+  assert.match(bag, /JSON\.stringify\(\{ cart, code \}\)/, 'the code never reaches the quote');
+  assert.match(
+    bag,
+    /JSON\.stringify\(\{ cart: window\.StitchCart\.read\(\), code \}\)/,
+    'the code never reaches the checkout, so the discount would vanish at the till'
+  );
+});

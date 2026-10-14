@@ -1605,3 +1605,65 @@ input[type='range'] { width: 100%; accent-color: var(--holo-ink); }
   padding: 0.2rem;
   cursor: pointer;
 }
+
+/* --------------------------------------------------------- promotions ---- */
+/*
+   Each row leads with a sentence saying what the promotion does, because
+   "20% off everything, ends Sunday" is the question somebody has and
+   "percent: 20, scope: all" is the answer to a different one.
+*/
+.promos { display: grid; gap: var(--s3); margin-bottom: var(--s3); }
+
+.promo {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: var(--s3);
+  background: var(--paper-raised);
+}
+
+.promo.is-off { opacity: 0.6; }
+
+.promo__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: var(--s2);
+}
+
+.promo__says {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.promo__drop {
+  flex: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  padding: 0.2rem 0.4rem;
+}
+
+.promo__drop:hover { color: var(--alert); }
+
+.promo__fields { display: grid; gap: 0.3rem; }
+
+.promo__amount { display: flex; align-items: center; gap: 0.4rem; }
+.promo__amount .field { inline-size: 6rem; }
+.promo__or { color: var(--ink-soft); font-size: 0.8rem; padding: 0 0.3rem; }
+
+.promo__dates { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+.promo__add { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: var(--s2); }
+
+.promo__kinds { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+
+@media (max-width: 560px) {
+  .promo__dates { grid-template-columns: 1fr; }
+  .promo__amount { flex-wrap: wrap; }
+}

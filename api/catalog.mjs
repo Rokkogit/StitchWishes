@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS, shippingIncluded, shippingIsFree } from '../lib/setti
 import { validateContent } from '../lib/content.mjs';
 import { themeVars, validateTheme } from '../lib/theme.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
-import { readyCatalog } from '../lib/seed.mjs';
+import { sellingCatalog } from '../lib/pricing.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 
 // Global Config takes up to ten seconds to propagate a write, so caching for
@@ -41,7 +41,10 @@ export default {
     // copy. Applied here rather than in the page, so /api/quote sees exactly
     // the same catalog — otherwise the shop would offer a design the checkout
     // would then refuse.
-    const products = readyCatalog(result.products, SEED);
+    // Sale prices applied here, so what a shelf shows and what the bag charges
+    // are the same number worked out by the same code.
+    const settings = result.settings ?? DEFAULT_SETTINGS;
+    const products = sellingCatalog(result.products, SEED, settings);
 
     return json(
       200,
@@ -59,7 +62,7 @@ export default {
         // for itself is a second copy of it, and the two would eventually
         // disagree about whether the shop charges for postage.
         shipping: {
-          ...(result.settings ?? DEFAULT_SETTINGS).shipping,
+          ...settings.shipping,
           includedInPrices: shippingIncluded(result.settings),
           free: shippingIsFree(result.settings),
         },

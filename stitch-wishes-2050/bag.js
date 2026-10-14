@@ -7,6 +7,7 @@
 (function () {
   const el = {};
   let quote = null;
+  let code = '';   // the discount code typed in the bag
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -35,7 +36,7 @@
       const response = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart }),
+        body: JSON.stringify({ cart, code }),
       });
 
       if (!response.ok) {
@@ -282,13 +283,31 @@
                   // Shipping reads like a rounding error; this is the one place
                   // the customer is actually looking at the cost of the order,
                   // so it is the one place it most needs to say so plainly.
-                  `<div${line.free ? ' class="bag-total__free"' : ''}><dt>${escapeHtml(line.label)}</dt><dd>${
-                    line.free ? 'Free' : money(line.amount)
+                  `<div${line.free ? ' class="bag-total__free"' : ''}${
+                    line.discount ? ' class="bag-total__off"' : ''
+                  }><dt>${escapeHtml(line.label)}</dt><dd>${
+                    line.free ? 'Free' : line.discount ? `−${money(Math.abs(line.amount))}` : money(line.amount)
                   }</dd></div>`
               )
               .join('')}
             <div class="bag-total__sum"><dt>Total</dt><dd>${money(quote.total)}</dd></div>
           </dl>
+
+          <form class="bag-code" data-code-form>
+            <label class="label" for="bag-code">Discount code</label>
+            <div class="bag-code__row">
+              <input class="field" id="bag-code" name="code" value="${escapeHtml(code)}"
+                     placeholder="If you have one" autocapitalize="characters" autocomplete="off">
+              <button class="btn btn-ghost" type="submit">Apply</button>
+            </div>
+            ${
+              quote.codeProblem
+                ? `<p class="bag-code__note bag-code__note--bad">${escapeHtml(quote.codeProblem)}</p>`
+                : quote.code
+                  ? `<p class="bag-code__note bag-code__note--good">${escapeHtml(quote.code)} applied.</p>`
+                  : ''
+            }
+          </form>
 
           <button class="btn btn-primary bag-total__pay" type="button" data-pay>Pay ${money(quote.total)}</button>
           <p class="bag-total__note" data-pay-note></p>
@@ -305,6 +324,17 @@
   }
 
   /* --------------------------------------------------------------- events */
+
+  // Applying a code is a reprice with the code attached: the server decides
+  // whether it is real, what it takes off, and says why if it does not.
+  function onSubmit(event) {
+    const form = event.target.closest('[data-code-form]');
+    if (!form) return;
+
+    event.preventDefault();
+    code = new FormData(form).get('code')?.toString().trim().toUpperCase() ?? '';
+    price();
+  }
 
   async function onClick(event) {
     const hit = (attr) => event.target.closest(`[${attr}]`);
@@ -364,7 +394,9 @@
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart: window.StitchCart.read() }),
+        // The code goes to the checkout as well as to the quote. Without it
+        // the bag would show a discount and the till would charge full price.
+        body: JSON.stringify({ cart: window.StitchCart.read(), code }),
       });
 
       const body = await response.json().catch(() => ({}));
@@ -391,6 +423,7 @@
     if (!el.body) return;
 
     el.body.addEventListener('click', onClick);
+    el.body.addEventListener('submit', onSubmit);
     price();
   });
 })();

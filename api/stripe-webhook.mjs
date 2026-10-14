@@ -9,7 +9,7 @@
 // again for days. The only 4xx here is a signature that does not verify.
 
 import { json, methodNotAllowed } from '../lib/http.mjs';
-import { readStore } from '../lib/global-config.mjs';
+import { readStore, countPromotionUse } from '../lib/global-config.mjs';
 import { readyCatalog } from '../lib/seed.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { resolveCart } from '../lib/cart.mjs';
@@ -85,6 +85,23 @@ export async function handle(request, fetchImpl = fetch) {
   }
 
   const reference = session.metadata?.reference || session.id;
+
+  // Count the code against its limit, now that the order is actually paid for.
+  // Counted here rather than at checkout because an abandoned checkout must
+  // not use up a code - somebody who never paid would otherwise burn one of
+  // the fifty uses, and a limited code would run out without selling anything.
+  const usedCode = session.metadata?.code;
+
+  if (usedCode) {
+    try {
+      await countPromotionUse(process.env, usedCode, fetchImpl);
+    } catch (error) {
+      // Bookkeeping. The order is paid for and the parcel still has to go out,
+      // so this never fails the webhook: a miscount is worth less than a
+      // retried event and a second copy of the order in the inbox.
+      console.error(`[stripe-webhook] ${reference} could not count ${usedCode}: ${error?.message}`);
+    }
+  }
 
   // The catalog supplies the names, designs and choices; Stripe supplies what was
   // actually charged. Neither is asked for what the other knows better.
