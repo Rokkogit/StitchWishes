@@ -260,3 +260,93 @@ test('the design photograph is what the bag shows', () => {
 
   assert.equal(result.items[0].image, 'assets/b.jpg');
 });
+
+/* ------------------------------------------------- one choice is one line */
+
+const SCENTED = {
+  handle: 'freshener',
+  title: 'Air Freshener',
+  price: 8.99,
+  images: ['assets/f.jpg'],
+  choices: [
+    {
+      id: 'c1',
+      label: 'Scent',
+      values: [
+        { id: 'v1', label: 'Pineapple' },
+        { id: 'v2', label: 'Dark Side' },
+      ],
+    },
+  ],
+};
+
+test('two scents of one piece are two lines, not one', () => {
+  // They were one. The line key held the handle, the design and the colour but
+  // not the choices, so ordering one of each merged them: the order recorded a
+  // single scent, charged for two, and would have sent somebody two of the
+  // wrong thing.
+  const { items } = resolveCart(
+    [
+      { handle: 'freshener', quantity: 1, choices: { c1: 'v1' } },
+      { handle: 'freshener', quantity: 1, choices: { c1: 'v2' } },
+    ],
+    [SCENTED]
+  );
+
+  assert.equal(items.length, 2);
+  assert.deepEqual(items.map((i) => i.choices[0].value).sort(), ['Dark Side', 'Pineapple']);
+  assert.deepEqual(items.map((i) => i.quantity), [1, 1]);
+});
+
+test('the same scent twice is still one line', () => {
+  const { items } = resolveCart(
+    [
+      { handle: 'freshener', quantity: 1, choices: { c1: 'v1' } },
+      { handle: 'freshener', quantity: 2, choices: { c1: 'v1' } },
+    ],
+    [SCENTED]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].quantity, 3);
+});
+
+test('a junk choice cannot split one line into two', () => {
+  // Otherwise a bag edited in devtools would get two rows, each checked
+  // against stock on its own - which is a way to buy more than is left.
+  const { items } = resolveCart(
+    [
+      { handle: 'freshener', quantity: 1, choices: { c1: 'v1' } },
+      { handle: 'freshener', quantity: 1, choices: { c1: 'nonsense' } },
+      { handle: 'freshener', quantity: 1, choices: { madeUp: 'alsoNonsense' } },
+    ],
+    [SCENTED]
+  );
+
+  // The first is a real choice; the other two resolve to none and merge
+  // together, because an unrecognised id is dropped rather than carried.
+  assert.equal(items.length, 2);
+  assert.equal(items.reduce((sum, i) => sum + i.quantity, 0), 3);
+});
+
+test('the order of the axes does not change the line', () => {
+  // The key sorts them, so {a,b} and {b,a} are the same row rather than two.
+  const two = {
+    ...SCENTED,
+    choices: [
+      ...SCENTED.choices,
+      { id: 'c2', label: 'Size', values: [{ id: 's1', label: 'Large' }] },
+    ],
+  };
+
+  const { items } = resolveCart(
+    [
+      { handle: 'freshener', quantity: 1, choices: { c1: 'v1', c2: 's1' } },
+      { handle: 'freshener', quantity: 1, choices: { c2: 's1', c1: 'v1' } },
+    ],
+    [two]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].quantity, 2);
+});

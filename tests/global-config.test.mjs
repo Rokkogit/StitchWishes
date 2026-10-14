@@ -2,6 +2,7 @@
 // is unavoidable — the alternative is calling Vercel's API from a unit test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   parseConnectionString,
@@ -504,4 +505,25 @@ test('writeStore still reports a refused token', async () => {
   const result = await writeStore(env(), { products: [] }, new Set(['products']), fetchImpl);
 
   assert.equal(result.reason, 'bad-api-token');
+});
+
+test("the shop's words are written, not silently dropped", async () => {
+  // writeStore looped over the catalog and the settings only, while the route
+  // passed content on every save. So every edit from the Words and Look tabs
+  // reported success and wrote nothing: nothing threw, nothing logged, and the
+  // panel went on showing the new wording until the page was reloaded.
+  const fetchImpl = stubFetch({ status: 200, body: { status: 'ok' } });
+
+  await writeStore(
+    env(),
+    { products: [], settings: { shipping: { amount: 1 } }, content: { home: { lede: 'New words' } } },
+    new Set(['products', 'settings', 'content']),
+    fetchImpl
+  );
+
+  const { items } = JSON.parse(fetchImpl.calls[0].options.body);
+  const written = items.map((item) => item.key).sort();
+
+  assert.deepEqual(written, ['content', 'products', 'settings']);
+  assert.deepEqual(items.find((item) => item.key === 'content').value, { home: { lede: 'New words' } });
 });
