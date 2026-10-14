@@ -2387,29 +2387,56 @@ main {
   padding: 0.15rem 0.5rem;
 }
 
-/* One line at the top of every page while a sale is running. A visitor who
-   lands on a piece that is not reduced would otherwise never know. */
-.sale-strip {
-  position: relative;
-  z-index: 5;
-  margin: 0;
-  padding: 0.55rem var(--s3);
-  background: var(--alert, #a8456a);
-  color: #fff;
-  text-align: center;
+
 }
 
-.sale-strip p {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* ------------------------------------------------------------- offers ---- */
+/*
+   What is running, said where it is relevant.
+
+   Not a strip across the top of every page: a banner is read once and then
+   stops being read, and it says the same thing to somebody browsing keyrings
+   as to somebody deciding on a canvas. So an offer appears beside the thing it
+   applies to - on the piece, above a grid, and in the bag where it is about to
+   change the total.
+*/
+.offers {
+  list-style: none;
+  margin: 0 0 var(--s3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.sale-strip strong { font-weight: 700; }
+.offer {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  background: var(--paper-raised);
+}
+
+.offer__ends { color: var(--ink-soft); font-size: 0.75rem; }
+
+/* On the piece, stacked under the price rather than in a row, because there is
+   rarely more than one and it should read as a sentence. */
+.offers--piece { flex-direction: column; align-items: flex-start; margin-block: 0.4rem var(--s2); }
+
+/* In the bag they are about to change the number below them. */
+.offers--bag { flex-direction: column; align-items: stretch; margin-block: var(--s2); }
+.offers--bag .offer { justify-content: flex-start; }
+
+/* The one worth acting on: a deal the bag is a step away from. */
+.offer--near {
+  border-style: solid;
+  border-color: var(--mint);
+  font-weight: 600;
+}
 
 @media (max-width: 560px) {
-  .sale-strip p { font-size: 0.64rem; letter-spacing: 0.06em; }
-  .card__sale { font-size: 0.56rem; inset-block-start: 0.4rem; inset-inline-start: 0.4rem; }
+  .offer { font-size: 0.78rem; padding: 0.3rem 0.6rem; }
 }

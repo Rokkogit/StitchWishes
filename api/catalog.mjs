@@ -10,7 +10,7 @@ import { validateContent } from '../lib/content.mjs';
 import { themeVars, validateTheme } from '../lib/theme.mjs';
 import { visibleProducts } from '../lib/catalog.mjs';
 import { sellingCatalog } from '../lib/pricing.mjs';
-import { isLive } from '../lib/promotions.mjs';
+import { liveOffers } from '../lib/promotions.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 
 // Global Config takes up to ten seconds to propagate a write, so caching for
@@ -70,19 +70,15 @@ export default {
         // The site's own words. Sent with the catalog rather than on a route of
         // their own: every page that wants them is already making this call,
         // and a second request would be a second chance to be slow.
-        // What is on sale right now, so the shop can say so in one line at the
-        // top rather than leaving a visitor to notice struck-through prices.
-        // Only sales: a discount code announced on every page would be a code
-        // nobody needs to be given.
-        sales: (settings.promotions ?? [])
-          .filter((promo) => promo.kind === 'sale' && isLive(promo))
-          .map((promo) => ({
-            label: promo.label,
-            percent: promo.percent,
-            amount: promo.amount,
-            scope: promo.scope,
-            ends: promo.ends,
-          })),
+        // Every promotion running right now that the shop advertises, each
+        // already written as a sentence and carrying which pieces it touches.
+        // Described here rather than in the browser so the shelf, the piece
+        // and the bag all word a deal the same way.
+        offers: liveOffers(
+          settings.promotions ?? [],
+          visibleProducts(products),
+          validateContent(result.content).value.categories ?? []
+        ),
         content: validateContent(result.content).value,
         // Computed on the server rather than in the page: the browser gets
         // finished values to set, and never has to know what a preset is.

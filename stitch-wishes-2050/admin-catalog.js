@@ -2474,6 +2474,16 @@
                </div>`
             : ''}
 
+          <label class="toggle">
+            <input type="checkbox" data-promo-field="showOnSite" ${promo.showOnSite === false ? '' : 'checked'}>
+            <span>Show this on the site</span>
+          </label>
+          <p class="hint">${
+            promo.kind === 'code'
+              ? 'On, a code is advertised on the pieces it covers. Switch it off for one you only want to give to certain people.'
+              : 'Shown beside the pieces it applies to, and in the bag.'
+          }</p>
+
           <label class="label">What it applies to</label>
           <select class="field" data-promo-field="scope">
             <option value="all" ${promo.scope === 'all' ? 'selected' : ''}>Everything</option>
@@ -2611,6 +2621,7 @@
     const value = event.target.value;
 
     if (name === 'enabled') promo.enabled = event.target.checked;
+    else if (name === 'showOnSite') promo.showOnSite = event.target.checked;
     else if (name === 'code') promo.code = value.toUpperCase().replace(/\s+/g, '');
     else if (['percent', 'amount', 'spend', 'buy', 'limit', 'price'].includes(name)) {
       promo[name] = value.trim() === '' ? null : Number(value);
@@ -2628,7 +2639,7 @@
     // The sentence, the chip and which fields are shown all follow the scope
     // and the dates, so those redraw. Typing in a text box must not, or the
     // caret jumps to the end on every keystroke.
-    if (['enabled', 'scope', 'starts', 'ends', 'target'].includes(name)) renderPromotions();
+    if (['enabled', 'showOnSite', 'scope', 'starts', 'ends', 'target'].includes(name)) renderPromotions();
     else {
       const says = row.querySelector('.promo__says');
       if (says) says.innerHTML = promoSentence(promo);

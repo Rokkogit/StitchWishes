@@ -13,6 +13,8 @@ import {
   orderDiscounts,
   saleBadge,
   covers,
+  liveOffers,
+  nearMisses,
   MAX_PERCENT,
   MAX_AMOUNT,
 } from '../lib/promotions.mjs';
@@ -435,4 +437,127 @@ test('the promotion travels on the session so it can be counted once paid', () =
   });
 
   assert.equal(checked.params.metadata.code, 'promo-welcome');
+});
+
+/* ------------------------------------------------- said the same everywhere */
+
+const PRODUCTS = [
+  { handle: 'pen', title: 'Beaded Pens', price: 12.99, category: 'pens' },
+  { handle: 'mat', title: 'Mousepad', price: 13.99, category: 'desk' },
+];
+const CATEGORIES = [{ id: 'pens', label: 'Beaded pens' }];
+
+test('every kind of promotion can be described in words', () => {
+  // The shelf, the piece and the bag all show this one sentence. Four places
+  // inventing their own wording is four chances to describe one offer
+  // differently, and a customer who reads two of them believes neither.
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 3, price: 30, scope: 'piece', target: 'pen' },
+    { id: 's', kind: 'sale', percent: 20, scope: 'all' },
+    { id: 'c', kind: 'code', code: 'SAVE10', percent: 10, scope: 'category', target: 'pens' },
+    { id: 'p', kind: 'spend', spend: 50, amount: 10 },
+  ]).value;
+
+  const said = liveOffers(promos, PRODUCTS, CATEGORIES).map((offer) => offer.says);
+
+  assert.match(said[0], /Any 3 of Beaded Pens for \$30\.00/);
+  assert.match(said[1], /20% off everything/);
+  assert.match(said[2], /code SAVE10/);
+  assert.match(said[3], /Spend \$50\.00/);
+});
+
+test('a described offer names the piece rather than its web address', () => {
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 2, price: 20, scope: 'piece', target: 'pen' },
+  ]).value;
+
+  const [offer] = liveOffers(promos, PRODUCTS, CATEGORIES);
+
+  assert.match(offer.says, /Beaded Pens/);
+  assert.ok(!offer.says.includes('pen,'), 'it leaked the handle');
+});
+
+test('an offer carries which pieces it touches', () => {
+  // So a page showing one piece can ask "does this apply here" without
+  // knowing what a scope is.
+  const promos = validatePromotions([
+    { id: 'c', kind: 'code', code: 'PENS', percent: 10, scope: 'category', target: 'pens' },
+  ]).value;
+
+  assert.deepEqual(liveOffers(promos, PRODUCTS, CATEGORIES)[0].handles, ['pen']);
+});
+
+test('a promotion switched off the site is not advertised, but still works', () => {
+  // A code given to one customer to put something right should not end up on
+  // the shelf - and must still be redeemable.
+  const promos = validatePromotions([
+    { id: 'c', kind: 'code', code: 'SORRY', percent: 50, showOnSite: false },
+  ]).value;
+
+  assert.equal(liveOffers(promos, PRODUCTS, CATEGORIES).length, 0, 'a private code was advertised');
+
+  const out = orderDiscounts({
+    items: [{ handle: 'pen', price: 10, quantity: 1 }],
+    products: PRODUCTS,
+    promotions: promos,
+    code: 'SORRY',
+  });
+
+  assert.equal(out.cents, 500, 'a private code stopped working');
+});
+
+test('a promotion that is not running is not advertised', () => {
+  const promos = validatePromotions([
+    { id: 's', kind: 'sale', percent: 20, ends: '2020-01-01' },
+    { id: 'o', kind: 'sale', percent: 20, enabled: false },
+  ]).value;
+
+  assert.equal(liveOffers(promos, PRODUCTS, CATEGORIES).length, 0);
+});
+
+/* ---------------------------------------------------------- one step away */
+
+test('the bag says what one more piece would unlock', () => {
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 3, price: 30, scope: 'piece', target: 'pen' },
+  ]).value;
+
+  const near = (quantity) =>
+    nearMisses({ items: [{ handle: 'pen', price: 12.99, quantity }], products: PRODUCTS, promotions: promos });
+
+  assert.match(near(2)[0].says, /Add 1 more/);
+  assert.equal(near(2)[0].need, 1);
+  assert.equal(near(3).length, 0, 'a complete set needs no nudge');
+  assert.match(near(4)[0].says, /Add 2 more/);
+});
+
+test('nothing eligible in the bag is an advert, not a nudge', () => {
+  // "Add 3 more pens" to somebody buying a mousepad is not a nudge, it is a
+  // leaflet. The offer is already shown on the pens themselves.
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 3, price: 30, scope: 'piece', target: 'pen' },
+  ]).value;
+
+  assert.deepEqual(
+    nearMisses({ items: [{ handle: 'mat', price: 13.99, quantity: 1 }], products: PRODUCTS, promotions: promos }),
+    []
+  );
+});
+
+test('a spend reward says exactly how much more', () => {
+  const promos = validatePromotions([{ id: 's', kind: 'spend', spend: 50, amount: 10 }]).value;
+
+  const [nudge] = nearMisses({
+    items: [{ handle: 'pen', price: 12.99, quantity: 3 }],
+    products: PRODUCTS,
+    promotions: promos,
+  });
+
+  assert.match(nudge.says, /\$11\.03 more/);
+});
+
+test('an empty bag is nudged about nothing', () => {
+  const promos = validatePromotions([{ id: 's', kind: 'spend', spend: 50, amount: 10 }]).value;
+
+  assert.deepEqual(nearMisses({ items: [], products: PRODUCTS, promotions: promos }), []);
 });

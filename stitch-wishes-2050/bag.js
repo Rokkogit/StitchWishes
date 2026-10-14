@@ -297,6 +297,22 @@
             <div class="bag-total__sum"><dt>Total</dt><dd>${money(quote.total)}</dd></div>
           </dl>
 
+          ${
+            // What applies to this bag, and what one more piece would unlock.
+            // Both come from the server, so the bag never works out a deal for
+            // itself and never words one differently from the shelf.
+            (quote.offers ?? []).length || (quote.nudges ?? []).length
+              ? `<ul class="offers offers--bag" role="list">
+                   ${(quote.offers ?? [])
+                     .map((offer) => `<li class="offer offer--${escapeHtml(offer.kind)}">${escapeHtml(offer.says)}</li>`)
+                     .join('')}
+                   ${(quote.nudges ?? [])
+                     .map((nudge) => `<li class="offer offer--near">${escapeHtml(nudge.says)}</li>`)
+                     .join('')}
+                 </ul>`
+              : ''
+          }
+
           <form class="bag-code" data-code-form>
             <label class="label" for="bag-code">Discount code</label>
             <div class="bag-code__row">

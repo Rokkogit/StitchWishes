@@ -13,6 +13,7 @@
 import { json, methodNotAllowed } from '../lib/http.mjs';
 import { readStore } from '../lib/global-config.mjs';
 import { priceOrder } from '../lib/pricing.mjs';
+import { validateContent } from '../lib/content.mjs';
 import { SEED } from '../lib/catalog-seed.mjs';
 import { DEFAULT_SETTINGS } from '../lib/settings.mjs';
 
@@ -35,13 +36,14 @@ export default {
 
     // One pricing path, shared with the checkout, so the bag and the charge
     // cannot drift apart. Sales, the cart, discounts and totals in that order.
-    const { items, problems, totals, code, codeProblem } = priceOrder({
+    const { items, problems, totals, code, codeProblem, offers, nudges } = priceOrder({
       cart: body?.cart,
       products: store.products,
       seed: SEED,
       settings: store.settings ?? DEFAULT_SETTINGS,
       code: body?.code,
       usage: store.promotionUsage,
+      categories: validateContent(store.content).value.categories,
     });
 
     return json(
@@ -62,6 +64,9 @@ export default {
         // code and sees no change assumes the shop is broken.
         code,
         codeProblem,
+        // What applies to this bag, and what one more piece would unlock.
+        offers,
+        nudges,
       },
       { 'Cache-Control': 'no-store' }
     );

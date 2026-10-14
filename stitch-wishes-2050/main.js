@@ -51,40 +51,51 @@ function mediaHtml(product, modifier) {
 
 
 
-/* One line at the top of the page when something is on sale.
 
-   A visitor who lands on a piece that is not reduced would otherwise have no
-   idea a sale is running at all, and struck-through prices on a card are only
-   seen by somebody already looking at that card.
+/* ------------------------------------------------------------- offers */
 
-   It says when it ends where there is an end, because a deadline is the whole
-   reason to act today rather than think about it. No countdown: the shop has
-   no invented urgency anywhere else and this is not the place to start. */
-function renderSaleBanner() {
-  const existing = document.querySelector('[data-sale-banner]');
-  if (existing) existing.remove();
+/* What is on, said where it is relevant.
 
-  if (!shopSales.length) return;
+   Not a strip across the top of every page. A banner is read once and then
+   stops being read, and it says the same thing to somebody browsing keyrings
+   as to somebody deciding on a canvas.
 
-  // The biggest one. Several at once is a list nobody reads in a strip.
-  const best = shopSales.reduce((most, sale) =>
-    (sale.percent ?? 0) > (most.percent ?? 0) ? sale : most
-  );
+   So an offer appears beside the thing it applies to: on the piece itself
+   when it covers that piece, above the grid when it covers a group, and in
+   the bag where it is about to change the total. The sentence comes from the
+   server, so all three word it identically. */
+const offersFor = (handle) =>
+  shopOffers.filter((offer) => !handle || (offer.handles ?? []).includes(handle));
 
-  const how = best.percent ? `${best.percent}% off` : `${formatPrice(best.amount)} off`;
-  const what = best.scope === 'all' ? ' everything' : '';
+function offersHtml(offers, modifier = '') {
+  if (!offers.length) return '';
 
-  const until = best.ends
-    ? ` &middot; until ${new Date(best.ends).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`
-    : '';
+  return `
+    <ul class="offers${modifier}" role="list">
+      ${offers
+        .map(
+          (offer) => `
+        <li class="offer offer--${escapeHtml(offer.kind)}">
+          <span class="offer__says">${escapeHtml(offer.says)}</span>
+          ${offer.ends ? `<span class="offer__ends">until ${escapeHtml(endsOn(offer.ends))}</span>` : ''}
+        </li>`
+        )
+        .join('')}
+    </ul>
+  `;
+}
 
-  const banner = document.createElement('aside');
-  banner.className = 'sale-strip';
-  banner.setAttribute('data-sale-banner', '');
-  banner.setAttribute('role', 'status');
-  banner.innerHTML = `<p><strong>${escapeHtml(how)}${what}</strong>${until}</p>`;
+const endsOn = (ms) =>
+  new Date(ms).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
-  document.body.prepend(banner);
+// Drawn after the live catalog lands, since that is when the offers do.
+function paintOffers() {
+  const shelf = document.querySelector('[data-offers]');
+  if (shelf) shelf.innerHTML = offersHtml(offersFor(null));
+
+  for (const slot of document.querySelectorAll('[data-offers-for]')) {
+    slot.innerHTML = offersHtml(offersFor(slot.dataset.offersFor), ' offers--piece');
+  }
 }
 
 /* ------------------------------------------------------------- on sale */
@@ -851,8 +862,7 @@ async function fetchLiveProducts() {
       applyPostageCopy();
     }
 
-    shopSales = Array.isArray(data.sales) ? data.sales : [];
-    renderSaleBanner();
+    shopOffers = Array.isArray(data.offers) ? data.offers : [];
 
     if (data.content) {
       shopCopy = data.content;
@@ -955,7 +965,7 @@ function renderFilters(root, products, active) {
 // until a live read lands, and the strip simply omits the number until then -
 // a wrong price printed confidently is worse than no price.
 let shopShipping = null;
-let shopSales = [];   // sales running right now, from /api/catalog
+let shopOffers = [];  // every promotion the shop advertises, from /api/catalog
 
 // The site's own words, once a live read has landed.
 let shopCopy = null;
@@ -1265,6 +1275,7 @@ function renderAll(products) {
   shopProducts = products.filter((p) => p.hidden !== true);
 
   renderPicks(shopProducts);
+  paintOffers();
 
   renderGrid(document.querySelector('[data-featured]'), featuredFrom(products));
   renderCollection();
@@ -1299,6 +1310,7 @@ function renderAll(products) {
           <h1>${escapeHtml(product.title)}</h1>
           ${detailPriceHtml(product)}
           ${freeShippingNote()}
+          <div data-offers-for="${escapeHtml(product.handle)}"></div>
 
           <!-- Choose, then buy, then read. The descriptions here run to about
                1,100 characters, which on a phone put the add-to-bag button
