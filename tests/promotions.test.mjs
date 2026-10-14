@@ -37,13 +37,6 @@ test('a promotion that takes nothing off is refused', () => {
   assert.match(errors[0].message, /how much/i);
 });
 
-test('a bundle needs no amount, because the free piece is the discount', () => {
-  const bundle = made({ kind: 'bundle', buy: 3 });
-
-  assert.ok(bundle, 'the bundle was refused');
-  assert.equal(bundle.buy, 3);
-});
-
 test('one bad promotion does not cost the others', () => {
   // These are typed into a form. One being wrong should cost that one, not the
   // four already running.
@@ -250,27 +243,82 @@ test('a code only reduces the part of the order it covers', () => {
   assert.equal(out.cents, 1500);
 });
 
-test('buy three pay for two takes off the cheapest', () => {
-  const promos = validatePromotions([{ id: 'b', kind: 'bundle', buy: 3, label: '3 for 2' }]).value;
+test('a bundle is a set price, not a free one', () => {
+  // "3 for $30" is a number somebody can picture. "Buy 3 pay for 2" makes
+  // them do arithmetic on prices they have not added up yet.
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 3, price: 25, scope: 'piece', target: 'pen', label: '3 for $25' },
+  ]).value;
+
+  const off = (quantity) =>
+    orderDiscounts({
+      items: [{ handle: 'pen', price: 10, quantity }],
+      products: CATALOG,
+      promotions: promos,
+    }).cents;
+
+  assert.equal(off(2), 0, 'an incomplete set is full price');
+  assert.equal(off(3), 500, '30 becomes 25');
+  assert.equal(off(5), 500, 'the two left over stay full price');
+  assert.equal(off(6), 1000, 'two complete sets');
+});
+
+test('a bundle without a set price is refused', () => {
+  const { value, errors } = validatePromotions([{ id: 'b', kind: 'bundle', buy: 3 }]);
+
+  assert.equal(value.length, 0);
+  assert.match(errors[0].message, /what the set costs/i);
+});
+
+test('a set price above what the pieces cost does nothing rather than charging more', () => {
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 2, price: 999, scope: 'piece', target: 'pen' },
+  ]).value;
 
   const out = orderDiscounts({
-    items: [{ handle: 'pen', price: 10, quantity: 2 }, { handle: 'keyring', price: 4, quantity: 1 }],
+    items: [{ handle: 'pen', price: 10, quantity: 2 }],
     products: CATALOG,
     promotions: promos,
   });
 
-  assert.equal(out.cents, 400, 'the keyring is the cheapest of the three');
+  assert.equal(out.cents, 0, 'a bad deal is not a surcharge');
 });
 
-test('a bundle repeats, and the remainder stays full price', () => {
-  const promos = validatePromotions([{ id: 'b', kind: 'bundle', buy: 3 }]).value;
-  const off = (quantity) =>
-    orderDiscounts({ items: [{ handle: 'pen', price: 10, quantity }], products: CATALOG, promotions: promos }).cents;
+test('a set is made of the dearest things in the bag', () => {
+  // The version a customer would pick for themselves. Picking it for them is
+  // the only way the number on the shelf stays true whatever ends up in it.
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 2, price: 20, scope: 'all' },
+  ]).value;
 
-  assert.equal(off(2), 0);
-  assert.equal(off(3), 1000);
-  assert.equal(off(5), 1000);
-  assert.equal(off(6), 2000);
+  const out = orderDiscounts({
+    items: [
+      { handle: 'canvas', price: 30, quantity: 1 },
+      { handle: 'pen', price: 10, quantity: 1 },
+      { handle: 'keyring', price: 4, quantity: 1 },
+    ],
+    products: CATALOG,
+    promotions: promos,
+  });
+
+  // The canvas and the pen: 40 becomes 20. Not the keyring and the pen.
+  assert.equal(out.cents, 2000);
+});
+
+test('a bundle over a whole category still cannot make an order negative', () => {
+  const promos = validatePromotions([{ id: 'b', kind: 'bundle', buy: 2, price: 0, scope: 'all' }]).value;
+
+  const totals = orderTotal([{ price: 4, quantity: 2 }], DEFAULT_SETTINGS, {
+    cents: orderDiscounts({
+      items: [{ handle: 'keyring', price: 4, quantity: 2 }],
+      products: CATALOG,
+      promotions: promos,
+    }).cents,
+    lines: [{ label: 'Two for nothing', cents: 800 }],
+  });
+
+  assert.equal(totals.total, 0);
+  assert.ok(totals.total >= 0);
 });
 
 test('spend and save only fires once the bag is big enough', () => {

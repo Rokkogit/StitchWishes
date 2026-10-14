@@ -2314,7 +2314,7 @@
   const PROMO_KINDS = [
     { id: 'code', label: 'Discount code', hint: 'A code someone types in the bag.' },
     { id: 'sale', label: 'Sale', hint: 'Automatic, between two dates. Shows a struck-through price.' },
-    { id: 'bundle', label: 'Bundle deal', hint: 'Buy several, the cheapest one is free.' },
+    { id: 'bundle', label: 'Bundle deal', hint: 'Buy a few of something, the set costs a fixed price.' },
     { id: 'spend', label: 'Spend and save', hint: 'Spend enough, get money off.' },
   ];
 
@@ -2353,11 +2353,66 @@
           ? ' ' + escapeHtml(titleOf(promo.target) || promo.target || 'one piece')
           : ' everything';
 
-    if (promo.kind === 'bundle') return 'Buy ' + (promo.buy ?? 2) + ' of' + where + ', cheapest free';
+    if (promo.kind === 'bundle') {
+      return 'Any ' + (promo.buy ?? 2) + ' of' + where + ' for $' + dollars(promo.price);
+    }
     if (promo.kind === 'spend') return 'Spend $' + dollars(promo.spend) + ', get ' + off;
     if (promo.kind === 'code') return off + where + ' with code ' + escapeHtml(promo.code || '');
 
     return off + where;
+  }
+
+
+  /* What a set price actually costs the shop, said out loud.
+
+     "Any 3 for $30" across a whole category is fine when everything in it
+     costs about the same, and ruinous when it holds a $4 keyring and a $30
+     canvas - three canvases would go for the price of one. The deal always
+     takes the dearest things in the bag, because that is the version a
+     customer would pick, so the worst case is worth knowing before it
+     happens rather than after. */
+  function bundleWarning(promo) {
+    const buy = Number(promo.buy) || 0;
+    const price = Number(promo.price) || 0;
+
+    if (!buy || !price) {
+      return '<p class="hint">Say how many, and what that many cost together.</p>';
+    }
+
+    if (promo.scope === 'piece') {
+      const piece = byHandle(promo.target);
+      if (!piece || piece.price == null) {
+        return `<p class="hint">Any ${buy} for $${dollars(price)}.</p>`;
+      }
+
+      const full = piece.price * buy;
+      const off = full - price;
+
+      return off > 0
+        ? `<p class="hint">${buy} &times; $${dollars(piece.price)} is $${dollars(full)},
+             so they save $${dollars(off)}.</p>`
+        : `<p class="hint hint--warn">$${dollars(price)} is more than ${buy} of these cost
+             ($${dollars(full)}), so this deal does nothing.</p>`;
+    }
+
+    // Across several pieces, the worst case is the dearest ones.
+    const dearest = state.products
+      .filter((piece) => piece.price != null && (promo.scope === 'all' || piece.category === promo.target))
+      .map((piece) => Number(piece.price))
+      .sort((a, b) => b - a)
+      .slice(0, buy);
+
+    if (dearest.length < buy) {
+      return `<p class="hint">Not enough pieces in this group yet for a set of ${buy}.</p>`;
+    }
+
+    const worst = dearest.reduce((sum, value) => sum + value, 0);
+
+    return worst - price > 0
+      ? `<p class="hint hint--warn">The most this can cost you: the dearest ${buy} come to
+           $${dollars(worst)}, and they would pay $${dollars(price)} &mdash; $${dollars(worst - price)} off.
+           A set price works best pointed at one piece.</p>`
+      : `<p class="hint">Any ${buy} for $${dollars(price)}.</p>`;
   }
 
   function promoRowHtml(promo, index) {
@@ -2388,10 +2443,17 @@
             : ''}
 
           ${promo.kind === 'bundle'
-            ? `<label class="label">Buy how many</label>
-               <input class="field field--mono" inputmode="numeric"
-                      value="${escapeHtml(promo.buy ?? 2)}" data-promo-field="buy">
-               <p class="hint">The cheapest of every ${escapeHtml(promo.buy ?? 2)} is free.</p>`
+            ? `<label class="label">How many, and what the set costs</label>
+               <div class="promo__amount">
+                 <span>Any</span>
+                 <input class="field field--mono" inputmode="numeric"
+                        value="${escapeHtml(promo.buy ?? 2)}" data-promo-field="buy">
+                 <span class="promo__or">for</span>
+                 <span>$</span>
+                 <input class="field field--mono" inputmode="decimal"
+                        value="${escapeHtml(promo.price ?? '')}" data-promo-field="price" placeholder="30">
+               </div>
+               ${bundleWarning(promo)}`
             : `<label class="label">How much comes off</label>
                <div class="promo__amount">
                  <input class="field field--mono" inputmode="decimal"
@@ -2518,7 +2580,9 @@
       label: PROMO_KINDS.find((entry) => entry.id === kind)?.label ?? 'Discount',
       enabled: true,
       scope: 'all',
-      ...(kind === 'bundle' ? { buy: 3 } : {}),
+      // A set price only means something when the set is of one thing, so a
+      // new bundle starts pointed at a single piece.
+      ...(kind === 'bundle' ? { buy: 3, price: null, scope: 'piece' } : {}),
       ...(kind === 'code' ? { code: '' } : {}),
     });
 
@@ -2548,7 +2612,7 @@
 
     if (name === 'enabled') promo.enabled = event.target.checked;
     else if (name === 'code') promo.code = value.toUpperCase().replace(/\s+/g, '');
-    else if (['percent', 'amount', 'spend', 'buy', 'limit'].includes(name)) {
+    else if (['percent', 'amount', 'spend', 'buy', 'limit', 'price'].includes(name)) {
       promo[name] = value.trim() === '' ? null : Number(value);
 
       // Both set is a promotion that cannot say what it does, so one clears
