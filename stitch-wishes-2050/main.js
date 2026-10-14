@@ -43,10 +43,92 @@ function mediaHtml(product, modifier) {
     <div class="${cls}">
       <img src="${escapeHtml(images[0])}" alt="${escapeHtml(product.title)}" loading="lazy">
       ${count}
+      ${saleFlash(product)}
       ${sold}
     </div>
   `;
 }
+
+
+
+/* One line at the top of the page when something is on sale.
+
+   A visitor who lands on a piece that is not reduced would otherwise have no
+   idea a sale is running at all, and struck-through prices on a card are only
+   seen by somebody already looking at that card.
+
+   It says when it ends where there is an end, because a deadline is the whole
+   reason to act today rather than think about it. No countdown: the shop has
+   no invented urgency anywhere else and this is not the place to start. */
+function renderSaleBanner() {
+  const existing = document.querySelector('[data-sale-banner]');
+  if (existing) existing.remove();
+
+  if (!shopSales.length) return;
+
+  // The biggest one. Several at once is a list nobody reads in a strip.
+  const best = shopSales.reduce((most, sale) =>
+    (sale.percent ?? 0) > (most.percent ?? 0) ? sale : most
+  );
+
+  const how = best.percent ? `${best.percent}% off` : `${formatPrice(best.amount)} off`;
+  const what = best.scope === 'all' ? ' everything' : '';
+
+  const until = best.ends
+    ? ` &middot; until ${new Date(best.ends).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`
+    : '';
+
+  const banner = document.createElement('aside');
+  banner.className = 'sale-strip';
+  banner.setAttribute('data-sale-banner', '');
+  banner.setAttribute('role', 'status');
+  banner.innerHTML = `<p><strong>${escapeHtml(how)}${what}</strong>${until}</p>`;
+
+  document.body.prepend(banner);
+}
+
+/* ------------------------------------------------------------- on sale */
+
+/* What a piece costs, and what it cost before.
+
+   A sale arrives already applied: the server reduced the price and kept the
+   old one as wasPrice, so nothing here works out a discount. This only has to
+   SHOW it - and show it in the one way that is read at a glance, which is the
+   old price struck through beside the new one rather than a percentage
+   somebody has to do arithmetic on.
+
+   The struck-through price is marked up as <s> and given an aria-label, so a
+   screen reader says "was twelve ninety-nine" rather than reading two prices
+   in a row with no idea which one is being charged. */
+function saleOf(product) {
+  const was = Number(product?.wasPrice);
+  const now = Number(product?.price);
+
+  if (!Number.isFinite(was) || !Number.isFinite(now) || was <= now) return null;
+
+  return { was, now, percent: Math.round(((was - now) / was) * 100) };
+}
+
+// The price, struck through if it is reduced. Used on the card, in the picks
+// row and on the piece itself, so a sale cannot show up in one place and not
+// another.
+function priceHtml(product, suffix = '') {
+  const sale = saleOf(product);
+  const now = formatPrice(product?.price);
+
+  if (!sale) return `${now}${suffix}`;
+
+  return `<s class="was" aria-label="Was ${formatPrice(sale.was)}">${formatPrice(sale.was)}</s>
+          <span class="now">${now}${suffix}</span>`;
+}
+
+// The corner flash on a photograph. Only where there is room for it to mean
+// something: a card, a pick. Not on the piece itself, where the struck-through
+// price is already saying it louder.
+const saleFlash = (product) => {
+  const sale = saleOf(product);
+  return sale ? `<span class="card__sale">${sale.percent}% off</span>` : '';
+};
 
 /* ---------------------------------------------------------------- gallery */
 
@@ -139,8 +221,24 @@ function priceLabel(product, design) {
   return designsOf(product).length > 1 ? `${formatPrice(price)} each` : formatPrice(price);
 }
 
+/* The price on the piece, struck through where it is reduced.
+
+   Separate from priceLabel because that one is also what refreshSelection
+   writes back as plain text when a design is chosen. Markup there would be
+   escaped and read as literal angle brackets, so the two are kept apart on
+   purpose: this draws, that one tells. */
 function detailPriceHtml(product) {
-  return `<p class="detail__price">${priceLabel(product, null)}</p>`;
+  const sale = saleOf(product);
+  const each = designsOf(product).length > 1 ? ' each' : '';
+
+  if (!sale) return `<p class="detail__price">${priceLabel(product, null)}</p>`;
+
+  return `
+    <p class="detail__price detail__price--sale">
+      ${priceHtml(product, each)}
+      <span class="detail__saving">Save ${formatPrice(sale.was - sale.now)}</span>
+    </p>
+  `;
 }
 
 // Sits above the button rather than above the strip: it is about what you are
@@ -548,7 +646,7 @@ function cardHtml(product) {
       <div class="card__body">
         <h3 class="card__title">${escapeHtml(product.title)}</h3>
         ${swatchesHtml(product)}
-        <p class="card__price">${formatPrice(product.price)}</p>
+        <p class="card__price">${priceHtml(product)}</p>
       </div>
     </a>
   `;
@@ -753,6 +851,9 @@ async function fetchLiveProducts() {
       applyPostageCopy();
     }
 
+    shopSales = Array.isArray(data.sales) ? data.sales : [];
+    renderSaleBanner();
+
     if (data.content) {
       shopCopy = data.content;
       applyCopy(shopCopy);
@@ -854,6 +955,7 @@ function renderFilters(root, products, active) {
 // until a live read lands, and the strip simply omits the number until then -
 // a wrong price printed confidently is worse than no price.
 let shopShipping = null;
+let shopSales = [];   // sales running right now, from /api/catalog
 
 // The site's own words, once a live read has landed.
 let shopCopy = null;
@@ -886,9 +988,10 @@ function picksHtml(product) {
       <span class="pick__media">
         ${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : ''}
         ${designs ? `<span class="pick__count">${designs} designs</span>` : ''}
+        ${saleFlash(product)}
       </span>
       <span class="pick__title">${escapeHtml(product.title)}</span>
-      <span class="pick__price">${formatPrice(product.price)}</span>
+      <span class="pick__price">${priceHtml(product)}</span>
     </a>
   `;
 }

@@ -403,3 +403,74 @@ test('the row stops recycling once it runs out of cards to drop', () => {
   assert.equal(drop, 2);
   assert.ok(offset > 0, 'it should still report how far past the end it went');
 });
+
+/* ------------------------------------------------------------- on sale */
+
+const REDUCED = { handle: 'reduced', title: 'Reduced', price: 9.74, wasPrice: 12.99, images: ['a.jpg'] };
+
+test('a reduced price shows what it was, struck through', () => {
+  const html = main.priceHtml(REDUCED);
+
+  assert.match(html, /<s class="was"/, 'the old price is not struck through');
+  assert.match(html, /\$12\.99/);
+  assert.match(html, /\$9\.74/);
+});
+
+test('the struck-through price says it is the old one, for a screen reader', () => {
+  // Two prices read in a row with no label is two numbers and no idea which
+  // one is being charged.
+  assert.match(main.priceHtml(REDUCED), /aria-label="Was \$12\.99"/);
+});
+
+test('a piece that is not reduced shows one plain price', () => {
+  const plain = main.priceHtml({ price: 12.99 });
+
+  assert.equal(plain, '$12.99');
+  assert.ok(!plain.includes('<s'));
+});
+
+test('a wasPrice that is not actually higher is ignored', () => {
+  // A stale or equal wasPrice would otherwise strike through the same number
+  // twice and look like a bug, which it would be.
+  assert.equal(main.priceHtml({ price: 10, wasPrice: 10 }), '$10.00');
+  assert.equal(main.priceHtml({ price: 10, wasPrice: 8 }), '$10.00');
+  assert.equal(main.priceHtml({ price: 10, wasPrice: null }), '$10.00');
+});
+
+test('the card carries a flash saying how much off', () => {
+  const card = main.mediaHtml(REDUCED);
+
+  assert.match(card, /card__sale/);
+  assert.match(card, /25% off/);
+});
+
+test('a card for something not on sale carries no flash', () => {
+  assert.ok(!main.mediaHtml({ price: 10, images: ['a.jpg'] }).includes('card__sale'));
+});
+
+test('the piece itself shows the saving in money, not a percentage', () => {
+  // Money is the thing being decided about.
+  const html = main.detailPriceHtml(REDUCED);
+
+  assert.match(html, /Save \$3\.25/);
+  assert.match(html, /<s class="was"/);
+});
+
+test('"each" survives a sale', () => {
+  // A sale on a piece with several designs must not lose the word that stops
+  // the price reading as the price of all of them.
+  const many = {
+    ...REDUCED,
+    designs: { label: 'Design', options: [{ id: 'd1', image: 'a.jpg' }, { id: 'd2', image: 'b.jpg' }] },
+  };
+
+  assert.match(main.detailPriceHtml(many), /each/);
+});
+
+test('the sale appears in every place a price is drawn', () => {
+  // The failure this guards: a reduced price on the card and the old one on
+  // the piece, so a visitor trusts neither.
+  for (const draw of [main.mediaHtml, main.detailPriceHtml, main.picksHtml]) {
+    assert.match(draw(REDUCED), /was|card__sale/, `${draw.name} does not show a sale`);
+  }
+});

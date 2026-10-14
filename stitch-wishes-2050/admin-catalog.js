@@ -2073,12 +2073,6 @@
       state.picking = 'images';
       return renderPicker();
     }
-    const addPromo = hit('data-add-promo');
-    if (addPromo) return addPromotion(addPromo.dataset.addPromo);
-
-    const dropPromo = hit('data-drop-promo');
-    if (dropPromo) return removePromotion(Number(dropPromo.closest('[data-promo]').dataset.promo));
-
     if (hit('data-close-picker')) return closePicker();
 
     const use = hit('data-use');
@@ -2128,7 +2122,6 @@
   // Typing updates the draft but never re-renders: rebuilding the form under
   // the cursor would move the caret to the end on every keystroke.
   function onInput(event) {
-    if (event.target.closest('[data-promo-field]')) return onPromoField(event);
     if (event.target.closest('[data-design-field]')) return onDesignInput(event);
     if (event.target.closest('[data-colour-label], [data-colour-preset]')) {
       return onColourField(event);
@@ -2219,7 +2212,6 @@
   }
 
   function onChange(event) {
-    if (event.target.closest('[data-promo-field]')) return onPromoField(event);
     if (event.target.closest('[data-colour-on]')) return onColourField(event);
 
     if (event.target.closest('[data-field="handle"]')) renderPiece();
@@ -2467,6 +2459,20 @@
         </div>
       </div>
     `;
+  }
+
+  /* The promotions panel listens for itself.
+
+     Every panel here does: el.main is the catalog panel alone, and a handler
+     hung on it never hears a click in Promotions. That is exactly what went
+     wrong the first time - the Add buttons did nothing at all, silently,
+     because the listener was on a different element. */
+  function onPromotionsClick(event) {
+    const add = event.target.closest('[data-add-promo]');
+    if (add) return addPromotion(add.dataset.addPromo);
+
+    const drop = event.target.closest('[data-drop-promo]');
+    if (drop) return removePromotion(Number(drop.closest('[data-promo]').dataset.promo));
   }
 
   function renderPromotions() {
@@ -2820,6 +2826,10 @@
 
     el.checkoutPanel.addEventListener('input', onCheckoutInput);
     el.checkoutPanel.addEventListener('click', onCheckoutClick);
+
+    el.promotionsPanel.addEventListener('click', onPromotionsClick);
+    el.promotionsPanel.addEventListener('input', onPromoField);
+    el.promotionsPanel.addEventListener('change', onPromoField);
     // Pressing a button in this panel blurs whichever field had focus, and the
     // blur below rebuilds the panel — which pulls the button out of the DOM
     // between the press and the click, so the click never lands. Noting the

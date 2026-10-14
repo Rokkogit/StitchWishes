@@ -133,7 +133,11 @@
           </a>
           ${variant}
           ${colour}
-          <p class="bag-item__price">${money(item.price)} each</p>
+          <p class="bag-item__price">${
+          item.wasPrice && item.wasPrice > item.price
+            ? `<s class="was">${money(item.wasPrice)}</s> <span class="now">${money(item.price)}</span>`
+            : money(item.price)
+        } each</p>
         </div>
 
         <div class="stepper" role="group" aria-label="How many">

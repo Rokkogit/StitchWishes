@@ -2330,3 +2330,86 @@ main {
 
 /* Money coming off reads as money coming off. */
 .bag-total__off dd { color: #2c7a5a; font-weight: 600; }
+
+/* ============================================================== on sale ==== */
+/*
+   A sale has to read at a glance, in every place a price appears, or somebody
+   sees a reduced price on one page and the old one on another and trusts
+   neither. So: the old price struck through, the new one in the shop's alert
+   colour, and a corner flash on the photograph.
+
+   No countdowns and no "only 3 left!" The rest of this shop says nothing it
+   cannot stand behind, and a sale is already a good enough reason to buy.
+*/
+
+/* The old price. Marked up as <s> so it is struck through even with no CSS,
+   and carrying its own aria-label so a screen reader says "was" rather than
+   reading two prices with no idea which is being charged. */
+.was {
+  color: var(--ink-faint);
+  font-weight: 400;
+  margin-inline-end: 0.35rem;
+  text-decoration-thickness: 1px;
+}
+
+.now { color: var(--alert, #a8456a); font-weight: 600; }
+
+/* The corner flash on a card or a pick. Sits opposite the design count so the
+   two never collide. */
+.card__sale {
+  position: absolute;
+  inset-block-start: 0.6rem;
+  inset-inline-start: 0.6rem;
+  z-index: 2;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--alert, #a8456a);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* On the piece itself the struck-through price is already loud, so this is the
+   quiet half: what they actually save, in money rather than a percentage,
+   because money is the thing being decided about. */
+.detail__price--sale { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
+
+.detail__saving {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--alert, #a8456a);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+/* One line at the top of every page while a sale is running. A visitor who
+   lands on a piece that is not reduced would otherwise never know. */
+.sale-strip {
+  position: relative;
+  z-index: 5;
+  margin: 0;
+  padding: 0.55rem var(--s3);
+  background: var(--alert, #a8456a);
+  color: #fff;
+  text-align: center;
+}
+
+.sale-strip p {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sale-strip strong { font-weight: 700; }
+
+@media (max-width: 560px) {
+  .sale-strip p { font-size: 0.64rem; letter-spacing: 0.06em; }
+  .card__sale { font-size: 0.56rem; inset-block-start: 0.4rem; inset-inline-start: 0.4rem; }
+}

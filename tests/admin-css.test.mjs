@@ -196,3 +196,27 @@ test('the bag can take a code and say what happened to it', () => {
     'the code never reaches the checkout, so the discount would vanish at the till'
   );
 });
+
+test('every panel that draws controls is actually listening', () => {
+  // The bug this guards: el.main is the CATALOG panel alone, not the whole
+  // page. A handler hung on it never hears a click in any other panel, so the
+  // Promotions Add buttons did nothing whatsoever - no error, no clue.
+  const js = read('admin-catalog.js');
+
+  const listening = new Set(
+    [...js.matchAll(/el\.([A-Za-z]+Panel)\.addEventListener\('click'/g)].map((m) => m[1])
+  );
+
+  for (const panel of ['ordersPanel', 'lookPanel', 'homepagePanel', 'checkoutPanel', 'promotionsPanel']) {
+    assert.ok(listening.has(panel), `${panel} draws controls that nothing is listening to`);
+  }
+});
+
+test('the promotions panel hears typing as well as clicks', () => {
+  // A select changes, a text box inputs. Missing either means a field that
+  // looks editable and silently keeps its old value.
+  const js = read('admin-catalog.js');
+
+  assert.match(js, /el\.promotionsPanel\.addEventListener\('input', onPromoField\)/);
+  assert.match(js, /el\.promotionsPanel\.addEventListener\('change', onPromoField\)/);
+});
