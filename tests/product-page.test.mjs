@@ -474,3 +474,33 @@ test('the sale appears in every place a price is drawn', () => {
     assert.match(draw(REDUCED), /was|card__sale/, `${draw.name} does not show a sale`);
   }
 });
+
+/* --------------------------------------------------------------- offers */
+
+test('the piece has a slot for the offers that cover it', () => {
+  // The bug this guards: paintOffers ran before the detail was rendered, so
+  // it filled an element that did not exist yet. The offers showed above the
+  // grid - whose slot is in the static HTML - and nowhere on the piece.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+
+  const renderAll = js.slice(js.indexOf('function renderAll('), js.indexOf('// The thank-you page.'));
+
+  const slot = renderAll.indexOf('data-offers-for=');
+  const paint = renderAll.lastIndexOf('paintOffers()');
+
+  assert.ok(slot > 0, 'the piece has nowhere to show an offer');
+  assert.ok(paint > slot, 'the offers are painted before the slot exists');
+});
+
+test('the offers are painted even when the catalog has not changed', () => {
+  // They arrive with the catalog fetch and nothing has drawn them yet. Leaving
+  // it to the repaint meant they appeared only when the live catalog happened
+  // to differ from the bundled copy.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const after = js.slice(js.indexOf('const live = await fetchLiveProducts()'));
+
+  const paint = after.indexOf('paintOffers()');
+  const bail = after.indexOf('JSON.stringify(live) === JSON.stringify(bundled)');
+
+  assert.ok(paint > 0 && paint < bail, 'offers are only painted when the catalog changed');
+});

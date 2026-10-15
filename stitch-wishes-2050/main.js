@@ -1275,7 +1275,6 @@ function renderAll(products) {
   shopProducts = products.filter((p) => p.hidden !== true);
 
   renderPicks(shopProducts);
-  paintOffers();
 
   renderGrid(document.querySelector('[data-featured]'), featuredFrom(products));
   renderCollection();
@@ -1329,6 +1328,12 @@ function renderAll(products) {
       renderGrid(document.querySelector('[data-related]'), goesWellWith(product, products, 4));
     }
   }
+
+  // Last, because the slot on a piece is drawn by the block above. Painting
+  // before that meant filling an element that did not exist yet, so the
+  // offers showed above the grid - whose slot is in the static HTML - and
+  // nowhere on the piece itself.
+  paintOffers();
 }
 
 // The thank-you page. Reached only by Stripe redirecting after a payment that
@@ -1377,6 +1382,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   initReveals();
 
   const live = await fetchLiveProducts();
+
+  // The offers arrive with that call and nothing has drawn them yet, so they
+  // are painted whatever happens next. Leaving it to the repaint below meant
+  // they appeared only when the live catalog happened to differ from the
+  // bundled copy - true most days, and silently false the day a shop stops
+  // editing its catalog.
+  paintOffers();
 
   // Repaint only on a real difference. Redrawing identical markup would reset
   // a gallery someone is already clicking through.
