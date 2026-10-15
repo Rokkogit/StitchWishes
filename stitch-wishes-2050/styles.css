@@ -2390,74 +2390,208 @@ main {
 
 }
 
-/* ------------------------------------------------------------- offers ---- */
-/*
-   What is running, said where it is relevant.
 
-   Not a strip across the top of every page: a banner is read once and then
-   stops being read, and it says the same thing to somebody browsing keyrings
-   as to somebody deciding on a canvas. So an offer appears beside the thing it
-   applies to - on the piece, above a grid, and in the bag where it is about to
-   change the total.
+
+/* ============================================================== offers ==== */
+/*
+   A deal should look like a good thing happening, not like a footnote.
+
+   These were dashed grey pills, which read as a disclaimer. They now wear the
+   shop's own iridescence - the same holo-shift the rest of the site is made
+   of - because a red SALE badge would belong to a different shop entirely.
+
+   What actually convinces is the arithmetic rather than the adjective:
+   "$38.97 -> $15.00, save $23.97" does more work than any amount of shouting,
+   and it has the advantage of being true. Still no countdowns and no invented
+   scarcity; a real saving is exciting enough on its own.
 */
+
 .offers {
   list-style: none;
   margin: 0 0 var(--s3);
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--s2);
 }
 
 .offer {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px dashed var(--line);
-  border-radius: 999px;
-  font-size: 0.82rem;
-  background: var(--paper-raised);
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 15rem;
+  min-width: 0;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg,
+      rgba(143, 212, 230, 0.38) 0%,
+      rgba(228, 204, 228, 0.38) 38%,
+      rgba(240, 192, 228, 0.34) 68%,
+      rgba(174, 226, 210, 0.38) 100%);
+  background-size: 220% 220%;
+  border: 1px solid var(--line-soft);
+  animation: holo-shift 14s ease-in-out infinite alternate;
 }
 
-.offer__ends { color: var(--ink-soft); font-size: 0.75rem; }
+/* A slow sheen travelling across, the same gesture the buy button uses. It is
+   the only motion here, and it stops entirely for anyone who asked it to. */
+.offer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+  transform: translateX(-120%);
+  animation: offer-sheen 7s ease-in-out infinite;
+  pointer-events: none;
+}
 
-/* On the piece, stacked under the price rather than in a row, because there is
-   rarely more than one and it should read as a sentence. */
-.offers--piece { flex-direction: column; align-items: flex-start; margin-block: 0.4rem var(--s2); }
+@keyframes offer-sheen {
+  0%, 62% { transform: translateX(-120%); }
+  86%, 100% { transform: translateX(120%); }
+}
 
-/* In the bag they are about to change the number below them. */
-.offers--bag { flex-direction: column; align-items: stretch; margin-block: var(--s2); }
-.offers--bag .offer { justify-content: flex-start; }
+.offer__kind {
+  display: inline-block;
+  margin-bottom: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
 
-/* The one worth acting on: a deal the bag is a step away from. */
-.offer--near {
-  border-style: solid;
-  border-color: var(--mint);
+.offer__says {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
   font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* The sum. This is the part that sells it. */
+.offer__sum {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.45rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.offer__sum s { color: var(--ink-faint); }
+.offer__arrow { color: var(--ink-soft); }
+.offer__sum strong { font-size: 1rem; }
+
+.offer__save {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.offer__ends {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Stacked under the price on a piece, where there is one and it should read
+   as a sentence rather than sit in a row. */
+.offers--piece { flex-direction: column; margin-block: 0.5rem var(--s2); }
+.offers--piece .offer { flex: 1 1 auto; }
+
+/* In the bag, where they are about to change the number below them. */
+.offers--bag { flex-direction: column; margin-block: var(--s2); }
+.offers--bag .offer { flex: 1 1 auto; }
+
+/* The one worth acting on. Mint rather than iridescent, so it reads as
+   progress instead of as another advert. */
+.offer--near {
+  background: linear-gradient(135deg, rgba(174, 226, 210, 0.55), rgba(143, 212, 230, 0.4));
+  border-color: var(--mint);
+  animation: none;
+}
+
+.offer--near::after { animation: none; display: none; }
+
+.offer__bar {
+  display: block;
+  block-size: 0.4rem;
+  margin-top: 0.55rem;
+  border-radius: 999px;
+  background: rgba(13, 42, 49, 0.12);
+  overflow: hidden;
+}
+
+.offer__bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+  transition: inline-size 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.offer__count {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------- the tag on a card ---- */
+/*
+   Small, iridescent, and tilted a degree so it reads as something stuck on
+   rather than something typed. A grid is scanned, so this has one job: catch
+   the eye on the way past.
+*/
+.card__offer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.35rem 0.3rem 0 0;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  rotate: -1deg;
+  background:
+    linear-gradient(120deg,
+      rgba(143, 212, 230, 0.75),
+      rgba(228, 204, 228, 0.75) 45%,
+      rgba(240, 192, 228, 0.7));
+  background-size: 200% 200%;
+  animation: holo-shift 14s ease-in-out infinite alternate;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink);
+  box-shadow: 0 1px 0 rgba(13, 42, 49, 0.08);
+}
+
+.card__offer-spark {
+  inline-size: 0.4rem;
+  block-size: 0.4rem;
+  border-radius: 50%;
+  background: var(--ink);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offer,
+  .card__offer { animation: none; }
+  .offer::after { display: none; }
+  .offer__bar-fill { transition: none; }
 }
 
 @media (max-width: 560px) {
-  .offer { font-size: 0.78rem; padding: 0.3rem 0.6rem; }
-}
-
-/* On a card: the offer in as few words as there is room for. A grid is
-   scanned, not read, so the long form goes on the piece and this is the
-   version that fits under a price. */
-.card__offer {
-  margin: 0.25rem 0 0;
-  font-size: 0.75rem;
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.card__offer::before {
-  content: '';
-  display: inline-block;
-  inline-size: 0.35rem;
-  block-size: 0.35rem;
-  margin-inline-end: 0.35rem;
-  border-radius: 50%;
-  background: var(--mint);
-  vertical-align: middle;
+  .offer { flex: 1 1 100%; padding: 0.75rem 0.9rem; }
+  .offer__says { font-size: 0.98rem; }
+  .card__offer { font-size: 0.68rem; }
 }

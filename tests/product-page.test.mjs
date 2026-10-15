@@ -512,7 +512,7 @@ test('a card says what deal is on that piece', () => {
   const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
 
   assert.match(js, /cardOffersHtml\(product\.handle\)/, 'the card never asks about offers');
-  assert.match(js, /class="card__offer"/, 'there is nowhere on the card to say it');
+  assert.match(js, /class="card__offer/, 'there is nowhere on the card to say it');
 });
 
 test('the grids are drawn again when the offers arrive', () => {
@@ -523,4 +523,39 @@ test('the grids are drawn again when the offers arrive', () => {
 
   assert.match(paint, /renderCollection\(\)/, 'the catalog grid is never redrawn with its offers');
   assert.match(paint, /data-featured/, 'the featured grid is never redrawn with its offers');
+});
+
+test('an offer carries its arithmetic, which is what sells it', () => {
+  // "$38.97 -> $15.00, save $23.97" does more work than any adjective, and it
+  // has the advantage of being true.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const card = js.slice(js.indexOf('function offerCardHtml'), js.indexOf('const endsOn ='));
+
+  assert.match(card, /offer__save/, 'the saving is never shown');
+  assert.match(card, /offer\.was/, 'the old total is never shown');
+});
+
+test('the shop still invents no urgency', () => {
+  // The rest of this site says nothing it cannot stand behind. A deal is
+  // exciting enough without a clock on it.
+  //
+  // Comments are stripped first, because this codebase states that principle
+  // out loud in several places and a test that cannot tell a promise from a
+  // breach of it is worse than no test.
+  const strip = (source) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  for (const name of ['styles.css', 'main.js', 'bag.js']) {
+    const code = strip(readFileSync(new URL(`../stitch-wishes-2050/${name}`, import.meta.url), 'utf8'));
+
+    assert.ok(!/hurry|act fast|limited time|selling fast/i.test(code), `invented urgency in ${name}`);
+    assert.ok(!/setInterval[\s\S]{0,120}(ends|expire|remain)/i.test(code), `a countdown in ${name}`);
+  }
+});
+
+test('the sparkle stops for anyone who asked it to', () => {
+  const css = readFileSync(new URL('../stitch-wishes-2050/styles.css', import.meta.url), 'utf8');
+  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+
+  assert.match(reduced, /\.offer,/);
+  assert.match(reduced, /\.card__offer \{ animation: none/);
 });

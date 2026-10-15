@@ -77,24 +77,61 @@ function cardOffersHtml(handle) {
   const offers = offersFor(handle);
   if (!offers.length) return '';
 
-  return `<p class="card__offer">${offers.map((offer) => escapeHtml(offer.short ?? offer.says)).join(' &middot; ')}</p>`;
+  return offers
+    .map(
+      (offer) => `<span class="card__offer card__offer--${escapeHtml(offer.kind)}">
+        <span class="card__offer-spark" aria-hidden="true"></span>${escapeHtml(offer.short ?? offer.says)}
+      </span>`
+    )
+    .join('');
 }
 
+const KIND_WORD = {
+  bundle: 'Bundle deal',
+  sale: 'On sale',
+  code: 'Use the code',
+  spend: 'Spend & save',
+};
+
+/* An offer, drawn to be looked at.
+
+   These used to be dashed grey pills, which read as a disclaimer rather than
+   a deal. They now wear the shop's own holographic palette, because that is
+   what the rest of the site is made of and a red SALE badge would belong to a
+   different shop entirely.
+
+   What makes one convincing is the arithmetic, not the adjective: "$38.97
+   worth for $15.00, save $23.97" does more than "AMAZING DEAL" ever will, and
+   it has the advantage of being true. The server works it out where it can be
+   worked out at all. */
 function offersHtml(offers, modifier = '') {
   if (!offers.length) return '';
 
   return `
     <ul class="offers${modifier}" role="list">
-      ${offers
-        .map(
-          (offer) => `
-        <li class="offer offer--${escapeHtml(offer.kind)}">
-          <span class="offer__says">${escapeHtml(offer.says)}</span>
-          ${offer.ends ? `<span class="offer__ends">until ${escapeHtml(endsOn(offer.ends))}</span>` : ''}
-        </li>`
-        )
-        .join('')}
+      ${offers.map(offerCardHtml).join('')}
     </ul>
+  `;
+}
+
+function offerCardHtml(offer) {
+  const sum =
+    offer.saving
+      ? `<p class="offer__sum">
+           <s>${formatPrice(offer.was)}</s>
+           <span class="offer__arrow" aria-hidden="true">&rarr;</span>
+           <strong>${formatPrice(offer.price)}</strong>
+           <span class="offer__save">save ${formatPrice(offer.saving)}</span>
+         </p>`
+      : '';
+
+  return `
+    <li class="offer offer--${escapeHtml(offer.kind)}">
+      <span class="offer__kind">${escapeHtml(KIND_WORD[offer.kind] ?? 'Offer')}</span>
+      <p class="offer__says">${escapeHtml(offer.says)}</p>
+      ${sum}
+      ${offer.ends ? `<p class="offer__ends">until ${escapeHtml(endsOn(offer.ends))}</p>` : ''}
+    </li>
   `;
 }
 

@@ -304,10 +304,32 @@
             (quote.offers ?? []).length || (quote.nudges ?? []).length
               ? `<ul class="offers offers--bag" role="list">
                    ${(quote.offers ?? [])
-                     .map((offer) => `<li class="offer offer--${escapeHtml(offer.kind)}">${escapeHtml(offer.says)}</li>`)
+                     .map(
+                       (offer) => `<li class="offer offer--${escapeHtml(offer.kind)}">
+                          <span class="offer__kind">On this order</span>
+                          <p class="offer__says">${escapeHtml(offer.says)}</p>
+                        </li>`
+                     )
                      .join('')}
                    ${(quote.nudges ?? [])
-                     .map((nudge) => `<li class="offer offer--near">${escapeHtml(nudge.says)}</li>`)
+                     .map((nudge) => {
+                       // How far along, drawn rather than described. "2 of 3"
+                       // filling up is the one thing here somebody acts on,
+                       // and a bar says it faster than a sentence does.
+                       const of = Number(nudge.of) || 0;
+                       const have = Number(nudge.have) || 0;
+                       const pct = of > 0 ? Math.min(100, Math.round((have / of) * 100)) : 0;
+
+                       return `<li class="offer offer--near">
+                          <span class="offer__kind">Nearly there</span>
+                          <p class="offer__says">${escapeHtml(nudge.says)}</p>
+                          <span class="offer__bar" role="img"
+                                aria-label="${escapeHtml(String(have))} of ${escapeHtml(String(of))}">
+                            <span class="offer__bar-fill" style="inline-size:${pct}%"></span>
+                          </span>
+                          ${nudge.kind === 'bundle' ? `<span class="offer__count">${have} of ${of}</span>` : ''}
+                        </li>`;
+                     })
                      .join('')}
                  </ul>`
               : ''
