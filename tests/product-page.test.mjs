@@ -559,3 +559,60 @@ test('the sparkle stops for anyone who asked it to', () => {
   assert.match(reduced, /\.offer,/);
   assert.match(reduced, /\.card__offer \{ animation: none/);
 });
+
+/* ------------------------------------------------------ two ways to buy */
+
+test('a piece offers both buying it and collecting it', () => {
+  const html = main.buyHtml(PENS);
+
+  assert.match(html, /data-buy-now/, 'there is no way to just buy it');
+  assert.match(html, /data-add/, 'there is no way to add it and carry on');
+});
+
+test('Buy it now sends only this piece, never the saved bag', () => {
+  // Somebody with three things in their bag and a sudden urge for a fourth
+  // should not find the other three on the receipt - and should still find
+  // them waiting afterwards.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const handler = js.slice(js.indexOf("if (nowButton)"), js.indexOf('refreshSelection(root, product);', js.indexOf('if (nowButton)')));
+
+  assert.match(handler, /cart: \[lineFor\(\)\]/, 'it sends something other than this one piece');
+  assert.ok(!/StitchCart/.test(handler), 'Buy it now touches the saved bag');
+});
+
+test('Add to bag stays on the page now that another button leaves', () => {
+  // It used to go straight to the bag, which was right when it was the only
+  // button. With Buy it now beside it, somebody who wanted to leave has a
+  // button that leaves - so this one is for adding a second design.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const handler = js.slice(js.indexOf('if (addButton)'), js.indexOf('if (nowButton)'));
+
+  assert.ok(!/location\.href/.test(handler), 'adding to the bag still navigates away');
+  assert.match(handler, /StitchCart\?\.add/);
+});
+
+test('adding says which design went in', () => {
+  // On a piece with nine designs, "added" is not enough to know which one.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const handler = js.slice(js.indexOf('if (addButton)'), js.indexOf('if (nowButton)'));
+
+  assert.match(handler, /design\?\.name/);
+  assert.match(handler, /in your bag/);
+});
+
+test('neither button works until a design is chosen', () => {
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const refresh = js.slice(js.indexOf('function refreshSelection'), js.indexOf('/* ---------------------------------------------------------------- buying */'));
+
+  assert.match(refresh, /const needsDesign/);
+  assert.match(refresh, /data-buy-now/, 'Buy it now is not guarded');
+  assert.match(refresh, /data-add/, 'Add to bag is not guarded');
+});
+
+test('a failed checkout leaves the bag and the page alone', () => {
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const handler = js.slice(js.indexOf('if (nowButton)'), js.indexOf('refreshSelection(root, product);', js.indexOf('if (nowButton)')));
+
+  assert.match(handler, /Nothing has been charged/);
+  assert.match(handler, /nowButton\.disabled = false/, 'the button stays dead after a failure');
+});

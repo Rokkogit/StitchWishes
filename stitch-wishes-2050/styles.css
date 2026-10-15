@@ -2595,3 +2595,35 @@ main {
   .offer__says { font-size: 0.98rem; }
   .card__offer { font-size: 0.68rem; }
 }
+
+/* ---------------------------------------------------- two ways to buy ---- */
+/*
+   Buy it now first and filled, Add to bag beside it and outlined.
+
+   The ordering is deliberate. Most people on a product page are deciding
+   about that one thing, so the button that finishes is the loud one. Add to
+   bag is for the person collecting several designs, and it stays on the page
+   for exactly that reason - bouncing them to the bag between each is the one
+   thing that stops them adding a second.
+*/
+.buy-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.buy-pair .btn-buy { width: 100%; justify-content: center; }
+
+.buy-pair .btn-ghost {
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+}
+
+.buy-note--bad { color: var(--alert, #a8456a); }
+
+/* On a narrow phone they stack, with the finishing button on top. Two half
+   width buttons at 320px are two buttons nobody can read. */
+@media (max-width: 420px) {
+  .buy-pair { grid-template-columns: 1fr; }
+}

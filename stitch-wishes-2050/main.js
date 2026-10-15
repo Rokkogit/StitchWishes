@@ -442,11 +442,21 @@ function refreshSelection(root, product) {
     thumb.classList.toggle('is-chosen', Boolean(chosen.design) && thumb.dataset.design === chosen.design);
   }
 
+  // Both buttons, same guard. A piece that comes in nine designs cannot be
+  // bought as "the piece" by either route - there would be no way to know
+  // which one to make.
+  const needsDesign = designsOf(product).length > 0 && !chosen.design;
+
   const add = root.querySelector('[data-add]');
   if (add) {
-    const needsDesign = designsOf(product).length > 0 && !chosen.design;
     add.disabled = needsDesign;
     add.textContent = needsDesign ? 'Choose a design first' : 'Add to bag';
+  }
+
+  const now = root.querySelector('[data-buy-now]');
+  if (now) {
+    now.disabled = needsDesign;
+    now.textContent = needsDesign ? 'Choose a design first' : 'Buy it now';
   }
 }
 
@@ -574,10 +584,12 @@ function buyHtml(product) {
 
   return `
     ${left}
-    <button class="btn btn-primary btn-buy" type="button" data-add>Add to bag</button>
-    <p class="buy-note" data-added hidden>
-      Added. <a href="bag.html">Go to your bag</a>
-    </p>
+    <div class="buy-pair">
+      <button class="btn btn-primary btn-buy" type="button" data-buy-now>Buy it now</button>
+      <button class="btn btn-ghost btn-buy" type="button" data-add>Add to bag</button>
+    </div>
+    <p class="buy-note" data-added hidden role="status"></p>
+    <p class="buy-note buy-note--bad" data-buy-error hidden role="status"></p>
     ${assuranceHtml(product)}
   `;
 }
@@ -624,10 +636,41 @@ function initBuy(root, product) {
     });
   }
 
-  const button = root.querySelector('[data-add]');
-  if (button) {
-    button.addEventListener('click', () => {
-      if (button.disabled) return;
+  /* Two buttons, two intentions.
+
+     Add to bag now STAYS on the page. It used to go straight to the bag,
+     which was right when it was the only button: a small "added" line is easy
+     to miss on a phone. With Buy it now beside it the meaning has changed -
+     somebody who wanted to leave has a button that leaves, so the other one
+     is for the person adding the green frog and then the pink one, and
+     bouncing them to the bag between each is exactly the wrong thing.
+
+     Buy it now goes to Stripe with this piece alone and does not touch the
+     saved bag. Somebody with three things already in there and a sudden urge
+     for a fourth should not find the other three on the receipt - and should
+     still find them waiting afterwards. */
+  const addButton = root.querySelector('[data-add]');
+  const nowButton = root.querySelector('[data-buy-now]');
+  const added = root.querySelector('[data-added]');
+  const failed = root.querySelector('[data-buy-error]');
+
+  const lineFor = () => ({
+    handle: product.handle,
+    design: chosen.design,
+    choices: { ...chosen.choices },
+    colour: chosen.colour,
+    quantity: 1,
+  });
+
+  const say = (node, text) => {
+    if (!node) return;
+    node.innerHTML = text;
+    node.hidden = !text;
+  };
+
+  if (addButton) {
+    addButton.addEventListener('click', () => {
+      if (addButton.disabled) return;
 
       window.StitchCart?.add(product.handle, 1, {
         design: chosen.design,
@@ -635,22 +678,52 @@ function initBuy(root, product) {
         colour: chosen.colour,
       });
 
-      // Straight to the bag rather than a small "Added" line that is easy to
-      // miss on a phone. The usual objection to this - that it interrupts
-      // browsing - assumes the bag is a dead end; here it carries its own
-      // suggestions and a "keep looking" link back, so it is a better selling
-      // surface than the page being left, not a worse one.
-      const added = root.querySelector('[data-added]');
-      if (added) added.hidden = false;
+      const count = window.StitchCart?.count?.() ?? 0;
+      const design = designsOf(product).find((entry) => entry.id === chosen.design);
 
-      button.disabled = true;
-      button.textContent = 'Added — opening your bag';
+      // Names what went in, because on a piece with nine designs "added" is
+      // not enough to know which one.
+      say(
+        added,
+        `${escapeHtml(design?.name ?? product.title)} added &mdash; ${count} in your bag. ` +
+          `<a href="bag.html">Go to your bag</a>`
+      );
+      say(failed, '');
+    });
+  }
 
-      // A beat before leaving, so the button visibly acknowledges the tap
-      // rather than the page appearing to change on its own.
-      window.setTimeout(() => {
-        window.location.href = 'bag.html';
-      }, 260);
+  if (nowButton) {
+    nowButton.addEventListener('click', async () => {
+      if (nowButton.disabled) return;
+
+      const wasSaying = nowButton.textContent;
+      nowButton.disabled = true;
+      nowButton.textContent = 'Opening checkout…';
+      say(failed, '');
+
+      try {
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cart: [lineFor()] }),
+        });
+
+        const body = await response.json().catch(() => ({}));
+
+        if (response.ok && body.url) {
+          window.location.href = body.url;
+          return;
+        }
+
+        say(failed, escapeHtml(body.error || 'Checkout could not be opened. Nothing has been charged.'));
+      } catch {
+        say(failed, 'Cannot reach the shop right now. Nothing has been charged.');
+      } finally {
+        // Whatever happened, the bag is untouched and the page still works.
+        nowButton.disabled = false;
+        nowButton.textContent = wasSaying;
+        refreshSelection(root, product);
+      }
     });
   }
 
