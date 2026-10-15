@@ -960,9 +960,20 @@
   color: var(--ink-faint);
 }
 
+/* Wrapping, not scrolling.
+
+   This was a plain flex row, which was fine for five tabs and hid the last
+   two the moment there were six: no wrap, no scroll, so Words and Look went
+   off the right-hand edge with nothing to suggest they existed. A tab nobody
+   can reach is a tab that is not there.
+
+   Wrapping rather than a sideways scroller because the panel is somewhere
+   work gets done, and a row that has to be dragged to find a section is a row
+   somebody will think is broken. Two lines on a phone is the right price. */
 .tabs {
   display: flex;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.4rem;
   padding-top: var(--s2);
 }
 

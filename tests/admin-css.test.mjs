@@ -220,3 +220,28 @@ test('the promotions panel hears typing as well as clicks', () => {
   assert.match(js, /el\.promotionsPanel\.addEventListener\('input', onPromoField\)/);
   assert.match(js, /el\.promotionsPanel\.addEventListener\('change', onPromoField\)/);
 });
+
+test('the tab strip can never hide a tab', () => {
+  // It was a plain flex row. Fine for five tabs, and the moment there were six
+  // the last two went off the right-hand edge with nothing to suggest they
+  // existed - no wrap, no scroll. A tab nobody can reach is a tab that is not
+  // there, and the next section added would do it again.
+  const css = read('admin.css').replace(/\s+/g, ' ');
+  const strip = css.slice(css.indexOf('.tabs {'), css.indexOf('.tab {'));
+
+  assert.match(strip, /flex-wrap: wrap|overflow-x: auto/, 'tabs can overflow out of reach');
+});
+
+test('every tab in the strip is one the panel knows how to draw', () => {
+  // A tab that switches to a blank screen is worse than no tab.
+  const html = read('admin.html');
+  const js = read('admin-catalog.js');
+
+  for (const [, name] of html.matchAll(/data-tab="([a-z]+)"/g)) {
+    assert.match(
+      js,
+      new RegExp(`name !== '${name}'|name === '${name}'`),
+      `the ${name} tab has nothing behind it`
+    );
+  }
+});
