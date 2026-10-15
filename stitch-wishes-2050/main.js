@@ -536,7 +536,7 @@ function assuranceHtml(product) {
 
   const points = [
     madeToOrder ? escapeHtml(says.madeToOrder || 'Made for you after you order') : 'Ready to send',
-    escapeHtml(says.delivery || 'Arrives in 3–7 days'),
+    escapeHtml(says.delivery || 'Arrives in 2 to 4 business days'),
     postage,
   ];
 
