@@ -2440,3 +2440,24 @@ main {
 @media (max-width: 560px) {
   .offer { font-size: 0.78rem; padding: 0.3rem 0.6rem; }
 }
+
+/* On a card: the offer in as few words as there is room for. A grid is
+   scanned, not read, so the long form goes on the piece and this is the
+   version that fits under a price. */
+.card__offer {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.card__offer::before {
+  content: '';
+  display: inline-block;
+  inline-size: 0.35rem;
+  block-size: 0.35rem;
+  margin-inline-end: 0.35rem;
+  border-radius: 50%;
+  background: var(--mint);
+  vertical-align: middle;
+}

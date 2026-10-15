@@ -504,3 +504,23 @@ test('the offers are painted even when the catalog has not changed', () => {
 
   assert.ok(paint > 0 && paint < bail, 'offers are only painted when the catalog changed');
 });
+
+test('a card says what deal is on that piece', () => {
+  // A grid is scanned, not read. The card is where somebody decides whether
+  // to open a piece at all, so an offer that only appears after they open it
+  // is an offer that did not do its job.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+
+  assert.match(js, /cardOffersHtml\(product\.handle\)/, 'the card never asks about offers');
+  assert.match(js, /class="card__offer"/, 'there is nowhere on the card to say it');
+});
+
+test('the grids are drawn again when the offers arrive', () => {
+  // A card carries its offer in its own markup, so it cannot be filled in
+  // place the way the slots on a page can - it has to be redrawn.
+  const js = readFileSync(new URL('../stitch-wishes-2050/main.js', import.meta.url), 'utf8');
+  const paint = js.slice(js.indexOf('function paintOffers()'), js.indexOf('/* ------------------------------------------------------------- on sale */'));
+
+  assert.match(paint, /renderCollection\(\)/, 'the catalog grid is never redrawn with its offers');
+  assert.match(paint, /data-featured/, 'the featured grid is never redrawn with its offers');
+});

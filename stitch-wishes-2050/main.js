@@ -67,6 +67,19 @@ function mediaHtml(product, modifier) {
 const offersFor = (handle) =>
   shopOffers.filter((offer) => !handle || (offer.handles ?? []).includes(handle));
 
+/* The offer on a card, said in as few words as the card has room for.
+
+   A grid is scanned, not read. "Any 3 of Blue Alien Beaded Pen Classics(not
+   fuzzy) for $15.00" under a card already titled that is a line nobody
+   finishes, so the card gets the short form from the server and the piece
+   gets the long one. */
+function cardOffersHtml(handle) {
+  const offers = offersFor(handle);
+  if (!offers.length) return '';
+
+  return `<p class="card__offer">${offers.map((offer) => escapeHtml(offer.short ?? offer.says)).join(' &middot; ')}</p>`;
+}
+
 function offersHtml(offers, modifier = '') {
   if (!offers.length) return '';
 
@@ -90,6 +103,13 @@ const endsOn = (ms) =>
 
 // Drawn after the live catalog lands, since that is when the offers do.
 function paintOffers() {
+  // The cards carry their offer in their own markup, so they have to be drawn
+  // again once the offers arrive rather than filled in place.
+  if (shopOffers.length && shopProducts.length) {
+    renderCollection();
+    renderGrid(document.querySelector('[data-featured]'), featuredFrom(shopProducts));
+  }
+
   const shelf = document.querySelector('[data-offers]');
   if (shelf) shelf.innerHTML = offersHtml(offersFor(null));
 
@@ -658,6 +678,7 @@ function cardHtml(product) {
         <h3 class="card__title">${escapeHtml(product.title)}</h3>
         ${swatchesHtml(product)}
         <p class="card__price">${priceHtml(product)}</p>
+        ${cardOffersHtml(product.handle)}
       </div>
     </a>
   `;

@@ -561,3 +561,17 @@ test('an empty bag is nudged about nothing', () => {
 
   assert.deepEqual(nearMisses({ items: [], products: PRODUCTS, promotions: promos }), []);
 });
+
+test('an offer has a short form for a card and a long one for a piece', () => {
+  // The card already carries the title above the line, so repeating it makes
+  // a line nobody finishes.
+  const promos = validatePromotions([
+    { id: 'b', kind: 'bundle', buy: 3, price: 15, scope: 'piece', target: 'pen' },
+  ]).value;
+
+  const [offer] = liveOffers(promos, PRODUCTS, CATEGORIES);
+
+  assert.equal(offer.short, 'Any 3 for $15.00');
+  assert.match(offer.says, /Any 3 of Beaded Pens for \$15\.00/);
+  assert.ok(offer.short.length < offer.says.length);
+});
